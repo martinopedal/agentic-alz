@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/roadmap.schema.json",
+  "title": "Agentic ALZ roadmap item",
+  "description": "Shape of a single roadmap item parsed by scripts/squad_bootstrap.py from ROADMAP.md. Each item becomes a GitHub issue keyed by the marker `<!-- roadmap-id: {id} -->`. Items with `agent_eligible: true` and all `depends_on` closed are auto-assigned to the Copilot cloud agent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "milestone",
+    "summary",
+    "acceptance_criteria",
+    "labels",
+    "agent_eligible"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable, unique slug used as the idempotency key in the issue marker.",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "title": {
+      "type": "string",
+      "description": "Issue title; should be imperative and self-contained.",
+      "minLength": 5,
+      "maxLength": 160
+    },
+    "milestone": {
+      "type": "string",
+      "description": "Milestone the issue belongs to. Bootstrap script ensures it exists.",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph context for the work item.",
+      "minLength": 10
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "description": "Bullet list of verifiable acceptance criteria.",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 5 }
+    },
+    "labels": {
+      "type": "array",
+      "description": "Labels to apply (and create if missing). Conventionally area:* and type:*.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9:_-]*$",
+        "maxLength": 50
+      }
+    },
+    "agent_eligible": {
+      "type": "boolean",
+      "description": "If true, the bootstrap script assigns @copilot when all `depends_on` are closed and no `human-only` label is present. Defaults to false to keep destructive/sensitive work human-driven."
+    },
+    "depends_on": {
+      "type": "array",
+      "description": "Other roadmap ids that must be closed before this item is eligible for auto-assignment.",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "repo": {
+      "type": "string",
+      "description": "Reserved for future fan-out to sibling repos (alz-platform, alz-firewall-policy, alz-workloads/*). When omitted, defaults to the current repo.",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    }
+  }
+}

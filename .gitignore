@@ -1,0 +1,53 @@
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Infracost
+infracost.json
+infracost-base.json
+infracost-diff.json
+
+# Local secrets — never commit
+*.tfvars
+!*.example.tfvars
+!evals/**/*.tfvars
+.env
+.env.*
+!.env.example
+
+# Orchestrator runtime artifacts
+/tmp-checkpoints/
+/out/

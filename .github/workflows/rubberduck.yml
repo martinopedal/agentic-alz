@@ -1,0 +1,102 @@
+name: rubberduck
+
+# Enforces the rubberduck-every-change rule from docs/rubberduck.md.
+# Reads only the PR body (no checkout, no code execution); refuses the PR
+# if the required headings are missing or any required subsection is left as
+# the template placeholder.
+#
+# Bypass: add the `incident` label during Sev-1/Sev-2 incident response.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+concurrency:
+  group: rubberduck-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Honour kill switch
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then
+            echo "::warning::kill switch engaged; skipping rubberduck check"
+            exit 0
+          fi
+
+      - name: Skip if labelled `incident`
+        if: contains(github.event.pull_request.labels.*.name, 'incident')
+        run: |
+          echo "::warning::incident label present; rubberduck bypassed (post-incident review must back-fill)"
+          exit 0
+
+      - name: Verify required sections in PR body
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'incident') }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          body = os.environ.get("PR_BODY") or ""
+          if not body.strip():
+              print("::error::PR body is empty; the rubberduck section is required")
+              sys.exit(1)
+
+          required_headings = [
+              "## Rubberduck",
+              "### What changed and why",
+              "### What I considered and rejected",
+              "### Blast radius",
+              "### Self-review notes",
+              "## Multi-model judge",
+              "## Frontier-model attestation",
+          ]
+          missing = [h for h in required_headings if h not in body]
+          if missing:
+              for h in missing:
+                  print(f"::error::missing required PR section: {h!r}")
+              sys.exit(1)
+
+          # The author must replace each `<...>` placeholder under the
+          # rubberduck subsections. We extract the slice from "## Rubberduck"
+          # to the next top-level "## " heading and assert no placeholders
+          # remain.
+          start = body.index("## Rubberduck")
+          tail = body[start + len("## Rubberduck"):]
+          next_h2 = tail.find("\n## ")
+          rubberduck_block = tail if next_h2 == -1 else tail[:next_h2]
+          if re.search(r"<\.\.\.>", rubberduck_block):
+              print("::error::Rubberduck section still contains '<...>' placeholders; fill them in")
+              sys.exit(1)
+          if "<First thing I re-checked" in rubberduck_block:
+              print("::error::Self-review notes still contain placeholder bullets; replace them")
+              sys.exit(1)
+
+          # Each subsection must contain at least one non-blank line of
+          # actual content beyond its heading.
+          for sub in (
+              "### What changed and why",
+              "### What I considered and rejected",
+              "### Blast radius",
+              "### Self-review notes",
+          ):
+              i = rubberduck_block.index(sub)
+              after = rubberduck_block[i + len(sub):].strip()
+              # Stop at the next heading.
+              m = re.search(r"\n###? ", after)
+              chunk = after if not m else after[: m.start()]
+              if len(chunk.strip()) < 20:
+                  print(f"::error::section {sub!r} needs at least one substantive sentence")
+                  sys.exit(1)
+
+          print("Rubberduck check passed.")
+          PY

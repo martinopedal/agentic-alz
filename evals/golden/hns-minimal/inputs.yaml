@@ -1,0 +1,52 @@
+schema_version: "1"
+org:
+  name: "Acme Corp"
+  short_code: "acme"
+tenant:
+  tenant_id: "11111111-2222-3333-4444-555555555555"
+management_groups:
+  root_id: "11111111-2222-3333-4444-555555555555"
+  intermediate_id: "alz"
+platform_subscriptions:
+  management:
+    subscription_id: "00000000-0000-0000-0000-000000000001"
+    display_name: "acme-platform-management"
+  connectivity:
+    subscription_id: "00000000-0000-0000-0000-000000000002"
+    display_name: "acme-platform-connectivity"
+  identity:
+    subscription_id: "00000000-0000-0000-0000-000000000003"
+    display_name: "acme-platform-identity"
+regions:
+  primary: "westeurope"
+  secondary: "northeurope"
+connectivity:
+  topology: "hub-and-spoke"
+  hub_address_space:
+    - "10.0.0.0/22"
+  firewall:
+    sku: "Premium"
+    policy_mode: "federated"
+    dns_proxy_enabled: true
+logging:
+  law_retention_days: 90
+  sentinel_enabled: false
+policy_baseline:
+  set: "alz-default"
+  deltas: []
+naming:
+  pattern: "{org}-{env}-{region}-{kind}-{seq}"
+tags:
+  required:
+    - "Owner"
+    - "CostCenter"
+    - "Environment"
+  defaults:
+    Environment: "platform"
+budgets:
+  monthly_usd: 5000
+  alert_thresholds_pct: [50, 80, 100]
+break_glass:
+  object_ids:
+    - "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    - "ffffffff-1111-2222-3333-444444444444"

@@ -1,0 +1,145 @@
+name: apply
+
+# Reusable Terraform apply workflow. Consumes the IMMUTABLE saved plan
+# artifact from `plan.yml`. Never re-plans. Never auto-approves. Runs only in
+# a protected environment with required reviewers (configured in repo
+# settings — this workflow declares the environment so GitHub enforces the
+# gate).
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        required: true
+      backend-resource-group:
+        type: string
+        required: true
+      backend-storage-account:
+        type: string
+        required: true
+      backend-container:
+        type: string
+        required: true
+      backend-key:
+        type: string
+        required: true
+      environment:
+        type: string
+        required: true
+        description: "Protected GitHub Environment with required reviewers."
+      plan-artifact:
+        type: string
+        required: true
+      azure-client-id:
+        type: string
+        required: true
+      azure-tenant-id:
+        type: string
+        required: true
+      azure-subscription-id:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  # Strict per-state lock; cancel-in-progress=false so we never abandon a
+  # running apply.
+  group: apply-${{ inputs.backend-key }}
+  cancel-in-progress: false
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  apply:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ inputs.azure-client-id }}
+          tenant-id: ${{ inputs.azure-tenant-id }}
+          subscription-id: ${{ inputs.azure-subscription-id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Download saved plan artifact
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: ${{ inputs.plan-artifact }}
+          path: ${{ inputs.working-directory }}
+
+      - name: Verify plan artifact freshness
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          # Refuse to apply a plan older than 24 h.
+          if find tfplan -mmin +1440 | grep -q tfplan; then
+            echo "::error::Plan artifact is older than 24 h; re-plan before applying."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install orchestrator
+        working-directory: orchestrator
+        run: pip install -e .
+
+      - name: Policy-check the apply argv
+        run: agentic-alz tf-policy apply tfplan
+
+      - name: terraform init
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.backend-resource-group }}" \
+            -backend-config="storage_account_name=${{ inputs.backend-storage-account }}" \
+            -backend-config="container_name=${{ inputs.backend-container }}" \
+            -backend-config="key=${{ inputs.backend-key }}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: terraform apply (saved plan)
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        timeout-minutes: 30
+        run: terraform apply -input=false -no-color tfplan
+
+      - name: Post-apply re-plan (drift check)
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=postplan
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then
+            echo "::warning::Post-apply plan shows non-empty diff; opening drift issue is the operator's responsibility."
+          elif [ "$rc" -ne 0 ]; then
+            echo "::error::Post-apply plan failed with exit $rc"
+            exit "$rc"
+          fi

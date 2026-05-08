@@ -1,0 +1,122 @@
+name: validate
+
+# Reusable Terraform validation workflow.
+# Intended to be called from the alz-platform and alz-firewall-policy repos
+# via `uses: martinopedal/agentic-alz/.github/workflows/validate.yml@<sha>`.
+# Exposed here as workflow_dispatch so it can be exercised locally.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        required: true
+      tflint-config:
+        type: string
+        required: false
+        default: ".tflint.hcl"
+      env:
+        type: string
+        required: false
+        default: "platform"
+    secrets:
+      INFRACOST_API_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      working-directory:
+        type: string
+        required: true
+        default: "templates/hub-and-spoke"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: validate-${{ github.ref }}-${{ inputs.working-directory }}
+  cancel-in-progress: true
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then
+            echo "Kill switch engaged; halting."
+            exit 1
+          fi
+
+  fmt:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive
+        working-directory: ${{ inputs.working-directory }}
+
+  tflint:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.55.1
+      - run: tflint --init
+        working-directory: ${{ inputs.working-directory }}
+      - run: tflint --config "${{ inputs.tflint-config }}" --format=compact
+        working-directory: ${{ inputs.working-directory }}
+
+  checkov:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install checkov
+      - run: checkov -d "${{ inputs.working-directory }}" --quiet --soft-fail-on LOW
+
+  conftest:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install conftest
+        run: |
+          curl -sSfL -o /tmp/conftest.tgz \
+            https://github.com/open-policy-agent/conftest/releases/download/v0.55.0/conftest_0.55.0_Linux_x86_64.tar.gz
+          tar -xzf /tmp/conftest.tgz -C /tmp
+          sudo install /tmp/conftest /usr/local/bin/conftest
+      - name: AVM pinning + naming
+        run: |
+          conftest test \
+            --parser hcl2 \
+            --policy policies \
+            --namespace alz.avm_pinning \
+            "${{ inputs.working-directory }}"/*.tf
+
+  terraform-validate:
+    needs: [fmt, tflint, checkov, conftest]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      # Real init requires backend config + Azure OIDC; this job runs `init
+      # -backend=false` so module sources resolve but no remote state is
+      # touched. The plan workflow does the real init.
+      - run: terraform init -backend=false
+        working-directory: ${{ inputs.working-directory }}
+      - run: terraform validate
+        working-directory: ${{ inputs.working-directory }}

@@ -1,0 +1,38 @@
+name: Change request
+description: Propose a change that is not yet on the roadmap.
+title: "[change] <short description>"
+labels: ["type:change-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Change requests are reviewed by a human. Approved requests are added
+        to [`ROADMAP.md`](../blob/main/ROADMAP.md); the squad bootstrap then
+        opens the tracking issue with the deterministic body shape.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem are we solving and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What is the smallest change that solves it? Mention any sensitive surfaces touched (apply.yml, bootstrap/, policies/, prompts/, schemas/, allowlist).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: textarea
+    id: blast_radius
+    attributes:
+      label: Blast radius
+      description: Worst-case impact if this lands and is wrong.
+    validations:
+      required: true

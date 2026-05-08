@@ -1,0 +1,53 @@
+name: drift
+
+# Nightly drift detection. Opens a GitHub issue per state file with a non-
+# empty diff. NEVER applies. Honours the post-apply 2-hour cooldown.
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC nightly
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: drift
+  cancel-in-progress: false
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  detect:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        state:
+          - { key: "platform.tfstate", dir: "templates/hub-and-spoke" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      # In a production deployment this job assumes the alz-readonly OIDC
+      # identity, restores cooldown state from the management Storage
+      # Account, then runs `terraform plan -detailed-exitcode`. The
+      # scaffolding here documents the wiring; the real cron job lives in
+      # the alz-platform repo where the state file is.
+      - name: Skeleton drift run
+        run: |
+          echo "Would run: terraform plan -detailed-exitcode -out=driftplan"
+          echo "Would check cooldown via agentic-alz/operate/drift_cooldown"
+          echo "Would open issue if exit-code == 2 AND not in cooldown"

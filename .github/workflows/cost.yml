@@ -1,0 +1,40 @@
+name: cost
+
+# Weekly cost report. Opens (or updates) a single issue with the Infracost
+# breakdown across tracked working directories.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: cost
+  cancel-in-progress: true
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  report:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skeleton cost report
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          echo "Would run: infracost breakdown --path templates/hub-and-spoke --format json"
+          echo "Would summarise WoW delta and open/update issue with label 'cost'"

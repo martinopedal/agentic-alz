@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-alz"
+version = "0.1.0"
+description = "GitOps pipeline orchestrator for Azure Landing Zones with narrow LLM stages."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "agentic-alz contributors" }]
+dependencies = [
+  "click>=8.1,<9",
+  "jsonschema>=4.21,<5",
+  "PyYAML>=6.0,<7",
+  "pydantic>=2.6,<3",
+  "structlog>=24.1,<26",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9",
+  "pytest-cov>=5.0,<7",
+  "ruff>=0.5,<1",
+]
+
+[project.scripts]
+agentic-alz = "agentic_alz.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agentic_alz*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

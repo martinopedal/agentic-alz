@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/inputs.schema.json",
+  "title": "Agentic ALZ inputs",
+  "description": "Minimal interview output for the Agentic ALZ pipeline. Hand-editing this file is a first-class supported path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "org",
+    "tenant",
+    "management_groups",
+    "platform_subscriptions",
+    "regions",
+    "connectivity",
+    "logging",
+    "policy_baseline",
+    "naming",
+    "tags"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1"
+    },
+    "org": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "short_code"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "short_code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]{1,5}$",
+          "description": "Lower-case org code embedded in resource names."
+        }
+      }
+    },
+    "tenant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_id"],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "management_groups": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_id", "intermediate_id"],
+      "properties": {
+        "root_id": {
+          "type": "string",
+          "description": "Tenant root MG ID (typically the tenant ID)."
+        },
+        "intermediate_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{2,32}$",
+          "description": "Display ID for the org-level intermediate MG (e.g. 'alz')."
+        }
+      }
+    },
+    "platform_subscriptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["management", "connectivity", "identity"],
+      "properties": {
+        "management":   { "$ref": "#/$defs/subscription" },
+        "connectivity": { "$ref": "#/$defs/subscription" },
+        "identity":     { "$ref": "#/$defs/subscription" }
+      }
+    },
+    "regions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary":   { "$ref": "#/$defs/azure_region" },
+        "secondary": { "$ref": "#/$defs/azure_region" }
+      }
+    },
+    "connectivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topology", "hub_address_space", "firewall"],
+      "properties": {
+        "topology": {
+          "type": "string",
+          "enum": ["hub-and-spoke", "vwan"],
+          "description": "v1 supports hub-and-spoke; vwan is reserved for v1.1."
+        },
+        "hub_address_space": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$"
+          }
+        },
+        "firewall": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sku", "policy_mode"],
+          "properties": {
+            "sku": { "type": "string", "enum": ["Standard", "Premium"] },
+            "policy_mode": {
+              "type": "string",
+              "enum": ["central", "federated"],
+              "description": "central = single policy; federated = base + workload child policies (recommended)."
+            },
+            "dns_proxy_enabled": { "type": "boolean", "default": true }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["law_retention_days"],
+      "properties": {
+        "law_retention_days": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 730
+        },
+        "sentinel_enabled": { "type": "boolean", "default": false }
+      }
+    },
+    "policy_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["set"],
+      "properties": {
+        "set": {
+          "type": "string",
+          "enum": ["alz-default"],
+          "description": "Only the ALZ default initiative set is supported in v1."
+        },
+        "deltas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["assignment", "action"],
+            "properties": {
+              "assignment": { "type": "string", "minLength": 1 },
+              "action": { "type": "string", "enum": ["disable", "audit-only", "exempt"] },
+              "justification": { "type": "string", "minLength": 10 }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern"],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Token-substitution pattern. Supported tokens: {org}, {env}, {region}, {workload}, {kind}, {seq}.",
+          "default": "{org}-{env}-{region}-{kind}-{seq}"
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]{0,62}$" },
+          "uniqueItems": true,
+          "minItems": 3
+        },
+        "defaults": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "monthly_usd": { "type": "number", "minimum": 0 },
+        "alert_thresholds_pct": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "default": [50, 80, 100]
+        }
+      }
+    },
+    "break_glass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_ids"],
+      "properties": {
+        "object_ids": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "subscription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id"],
+      "properties": {
+        "subscription_id": { "type": "string", "format": "uuid" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
+    "azure_region": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{2,30}$",
+      "description": "Azure region short name (e.g. 'westeurope', 'norwayeast')."
+    }
+  }
+}
