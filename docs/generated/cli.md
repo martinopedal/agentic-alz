@@ -13,7 +13,7 @@ Usage: agentic-alz [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --version                       Show the version and exit.
-  --log-level [DEBUG|INFO|WARNING|ERROR]
+  --log-level [debug|info|warning|error]
                                   [default: INFO]
   --help                          Show this message and exit.
 

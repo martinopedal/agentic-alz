@@ -30,7 +30,7 @@ def test_generate_writes_files(tmp_path: Path, golden_inputs_path: Path) -> None
 
 
 def test_risk_command_emits_valid_report(tmp_path: Path) -> None:
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     sample = Path(__file__).parent / "data" / "plan.sample.json"
     result = runner.invoke(
         main,
@@ -51,7 +51,7 @@ def test_kill_switch_blocks_cli(monkeypatch, golden_inputs_path: Path) -> None:
 
 
 def test_tf_policy_denies_destroy() -> None:
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(main, ["tf-policy", "destroy"])
     assert result.exit_code == 3
     payload = json.loads(result.stdout.strip().splitlines()[0])
@@ -81,7 +81,7 @@ def test_judge_cli_reports_pass(tmp_path: Path) -> None:
     }
     p = tmp_path / "verdicts.json"
     p.write_text(json.dumps(payload), encoding="utf-8")
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(main, ["judge", str(p)])
     assert result.exit_code == 0, result.output
     assert "PASS" in result.stdout
@@ -103,7 +103,7 @@ def test_judge_cli_fails_on_dissent(tmp_path: Path) -> None:
     }
     p = tmp_path / "verdicts.json"
     p.write_text(json.dumps(payload), encoding="utf-8")
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(main, ["judge", str(p)])
     assert result.exit_code == 5
     assert "FAIL" in result.stdout
@@ -125,14 +125,14 @@ def test_judge_cli_rejects_non_allowlisted_model(tmp_path: Path) -> None:
     }
     p = tmp_path / "verdicts.json"
     p.write_text(json.dumps(payload), encoding="utf-8")
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(main, ["judge", str(p)])
     assert result.exit_code == 4
     assert "frontier allowlist" in result.stderr
 
 
 def test_models_cli_lists_judges() -> None:
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(main, ["models", "--role", "judge"])
     assert result.exit_code == 0, result.output
     # Cross-provider diversity required for judges.
