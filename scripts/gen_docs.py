@@ -354,8 +354,184 @@ def render_index() -> tuple[str, list[Path]]:
         "- [`mcp.md`](mcp.md)\n"
         "- [`cli.md`](cli.md)\n"
         "- [`roadmap.md`](roadmap.md)\n"
+        "- [`playbooks-index.md`](playbooks-index.md)\n"
+        "- [`agent-instructions-hash.md`](agent-instructions-hash.md)\n"
+        "- [`decisions-index.md`](decisions-index.md)\n"
     )
     return out.getvalue(), []
+
+
+# ---------------------------------------------------------------------------
+# playbooks-index.md
+# ---------------------------------------------------------------------------
+_PLAYBOOK_RX = re.compile(r"^([0-9]{2})-[a-z0-9-]+\.md$")
+
+
+def render_playbooks_index() -> tuple[str, list[Path]]:
+    """Render the routing table: playbook → triggers → CI checks → CODEOWNERS.
+
+    The table is built from the playbooks themselves so it stays in lock-step
+    with the source. CI checks are extracted from the ``## Definition of
+    Done`` section by matching backticked tokens of the form
+    ``<workflow-stem> / <job>`` where ``<workflow-stem>`` is the basename of
+    a real file in ``.github/workflows/``.
+    """
+    pb_dir = REPO_ROOT / "docs" / "playbooks"
+    files = sorted(p for p in pb_dir.glob("*.md") if _PLAYBOOK_RX.match(p.name))
+    co_path = REPO_ROOT / "CODEOWNERS"
+    co_text = co_path.read_text(encoding="utf-8") if co_path.is_file() else ""
+    workflows_dir = REPO_ROOT / ".github" / "workflows"
+    workflow_stems = sorted(p.stem for p in workflows_dir.glob("*.yml"))
+    ci_ref_rx = re.compile(
+        r"`(" + "|".join(re.escape(w) for w in workflow_stems) + r")\s*/\s*([^`]+)`"
+    ) if workflow_stems else None
+
+    out = io.StringIO()
+    out.write("# Playbooks — routing index\n\n")
+    out.write(
+        "Generated from `docs/playbooks/` and `CODEOWNERS`. The hand-written "
+        "summary lives at [`../playbooks/README.md`](../playbooks/README.md); "
+        "this page is the machine-readable view used by `lint-instructions` "
+        "and by the squad bootstrapper to map labels to playbooks.\n\n"
+    )
+    out.write("| # | Playbook | Triggers (excerpt) | CI checks | Sensitive |\n")
+    out.write("| --- | --- | --- | --- | :---: |\n")
+    for f in files:
+        text = f.read_text(encoding="utf-8")
+        # Triggers excerpt: first non-blank line under "## Triggers".
+        trig_excerpt = "—"
+        m = re.search(r"^##\s+Triggers\s*\n(.+?)(?=^##\s)", text, re.DOTALL | re.MULTILINE)
+        if m:
+            for line in m.group(1).splitlines():
+                s = line.strip().lstrip("- ").strip()
+                if s and not s.startswith(">"):
+                    trig_excerpt = s.replace("|", "\\|")
+                    break
+        # CI checks: only count `<workflow-stem> / <job>` tokens.
+        ci_block = re.search(
+            r"^##\s+Definition of Done\s*\n(.+?)(?=^##\s|\Z)",
+            text,
+            re.DOTALL | re.MULTILINE,
+        )
+        ci_checks: list[str] = []
+        if ci_block and ci_ref_rx is not None:
+            for wf, job in ci_ref_rx.findall(ci_block.group(1)):
+                ci_checks.append(f"`{wf} / {job.strip()}`")
+        ci_str = ", ".join(sorted(set(ci_checks))) or "—"
+        sensitive = "✓" if f"docs/playbooks/{f.name}" in co_text else " "
+        title_m = re.search(r"^#\s+(.+?)\s*$", text, re.MULTILINE)
+        title = title_m.group(1) if title_m else f.stem
+        nn = _PLAYBOOK_RX.match(f.name).group(1)  # type: ignore[union-attr]
+        out.write(
+            f"| {nn} | [`{f.name}`](../playbooks/{f.name}) — {title} | "
+            f"{trig_excerpt[:80]} | {ci_str} | {sensitive} |\n"
+        )
+    out.write("\n")
+    out.write(
+        "## Sensitive playbooks\n\n"
+        "A ✓ above means the playbook governs a path that appears in "
+        "`CODEOWNERS` with a non-default reviewer. Edits to those playbooks "
+        "themselves require the same reviewer.\n"
+    )
+    return out.getvalue(), [*files, co_path]
+
+
+# ---------------------------------------------------------------------------
+# agent-instructions-hash.md
+# ---------------------------------------------------------------------------
+def render_agent_instructions_hash() -> tuple[str, list[Path]]:
+    """Record the SHA-256 of the canonical agent-instruction surfaces.
+
+    ``AGENTS.md`` is canonical; ``.github/copilot-instructions.md`` is the
+    deliberate stub pointing at it. Both files carry the marker
+    ``<!-- agent-instructions-canonical-source: AGENTS.md -->`` and a
+    matching ``<!-- agent-instructions-version: vN -->`` line — the
+    ``lint-instructions`` job verifies the markers are present and equal.
+    The hash recorded below makes any drift visible in PR diffs.
+    """
+    sources: list[Path] = [
+        REPO_ROOT / "AGENTS.md",
+        REPO_ROOT / ".github" / "copilot-instructions.md",
+        REPO_ROOT / "prompts" / "system" / "agent-preamble.v1.md",
+    ]
+    out = io.StringIO()
+    out.write("# Agent-instruction surfaces — content hash\n\n")
+    out.write(
+        "`AGENTS.md` is the single source of truth for agent instructions in "
+        "this repo. The Copilot stub at `.github/copilot-instructions.md` and "
+        "the runtime preamble at `prompts/system/agent-preamble.v1.md` are "
+        "the editor-time and runtime mirrors. The hashes below make any "
+        "drift visible in PR diffs; the `lint-instructions` job in `ci.yml` "
+        "verifies both stub-side files carry the canonical-source marker "
+        "pointing at `AGENTS.md`.\n\n"
+    )
+    out.write("| File | Bytes | SHA-256 |\n")
+    out.write("| --- | ---: | --- |\n")
+    for p in sources:
+        if not p.is_file():
+            out.write(f"| `{p.relative_to(REPO_ROOT)}` | — | _missing_ |\n")
+            continue
+        data = p.read_bytes()
+        out.write(
+            f"| `{p.relative_to(REPO_ROOT)}` | {len(data)} | "
+            f"`{hashlib.sha256(data).hexdigest()}` |\n"
+        )
+    return out.getvalue(), sources
+
+
+# ---------------------------------------------------------------------------
+# decisions-index.md
+# ---------------------------------------------------------------------------
+def render_decisions_index() -> tuple[str, list[Path]]:
+    """Index the research decisions under decision/<id>/.
+
+    Each subdirectory may contain a ``decision.json`` validated by
+    ``schemas/decision.schema.json``. Folders without one are listed as
+    "in progress"; folders with one show the chosen option, consensus
+    level, and ADR link.
+    """
+    decision_dir = REPO_ROOT / "decision"
+    schema = REPO_ROOT / "schemas" / "decision.schema.json"
+    sources: list[Path] = [schema]
+    out = io.StringIO()
+    out.write("# Research decisions\n\n")
+    out.write(
+        "Index of `decision/<id>/` records produced by the "
+        "[`10-research-and-decide.md`](../playbooks/10-research-and-decide.md) "
+        "playbook. Each row links to the ADR synthesised from the decision "
+        "(when one has been written).\n\n"
+    )
+    if not decision_dir.is_dir():
+        out.write("_No decision records yet. Folder `decision/` will be created on first use._\n")
+        return out.getvalue(), sources
+    rows: list[str] = []
+    for sub in sorted(p for p in decision_dir.iterdir() if p.is_dir()):
+        dj = sub / "decision.json"
+        if dj.is_file():
+            try:
+                data = json.loads(dj.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                rows.append(f"| `{sub.name}` | _invalid decision.json_ | — | — |")
+                continue
+            sources.append(dj)
+            outcome = data.get("outcome") or {}
+            adr = (data.get("adr") or {}).get("path") or "—"
+            adr_cell = f"[`{adr}`](../../{adr})" if adr != "—" else "—"
+            rows.append(
+                f"| `{data.get('id', sub.name)}` | {data.get('title', '—')} | "
+                f"`{outcome.get('chosen_option', '—')}` "
+                f"({outcome.get('consensus', '—')}) | {adr_cell} |"
+            )
+        else:
+            rows.append(f"| `{sub.name}` | _in progress_ | — | — |")
+    if rows:
+        out.write("| id | Title | Outcome | ADR |\n")
+        out.write("| --- | --- | --- | --- |\n")
+        for r in rows:
+            out.write(r + "\n")
+    else:
+        out.write("_No decision records yet._\n")
+    return out.getvalue(), sources
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +545,9 @@ RENDERERS = {
     "mcp.md": render_mcp,
     "cli.md": render_cli,
     "roadmap.md": render_roadmap,
+    "playbooks-index.md": render_playbooks_index,
+    "agent-instructions-hash.md": render_agent_instructions_hash,
+    "decisions-index.md": render_decisions_index,
     "README.md": render_index,
 }
 

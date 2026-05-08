@@ -71,6 +71,11 @@
       "type": "string",
       "description": "Reserved for future fan-out to sibling repos (alz-platform, alz-firewall-policy, alz-workloads/*). When omitted, defaults to the current repo.",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "playbook": {
+      "type": "string",
+      "description": "Filename (no path) of the docs/playbooks/ entry that governs the work item. When omitted, scripts/squad_bootstrap.py derives a default from labels (area:firewall -> 07, area:ci -> 08, area:llm/area:schemas/area:prompts -> 04, area:security with policies -> 05, area:terraform/area:bicep -> 06, area:operate with incident -> 09); fallback is 00-task-router.md.",
+      "pattern": "^[0-9]{2}-[a-z0-9-]+\\.md$"
     }
   }
 }

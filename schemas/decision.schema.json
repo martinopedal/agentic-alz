@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/decision.schema.json",
+  "title": "Agentic ALZ research decision record",
+  "description": "Typed shape for `decision/<id>/decision.json`, produced by the `10-research-and-decide.md` playbook. Each architectural decision touching a sensitive surface lives in its own folder: one markdown per allow-listed frontier model, one rubric, one `decision.json` aggregating the verdicts, and one ADR link. Round-trip-tested by `orchestrator/tests/test_decision_schema.py`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "problem",
+    "options",
+    "criteria",
+    "verdicts",
+    "outcome",
+    "adr"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "id": {
+      "type": "string",
+      "description": "Stable slug; the folder name under decision/.",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "title": {
+      "type": "string",
+      "description": "Imperative one-liner.",
+      "minLength": 5,
+      "maxLength": 160
+    },
+    "problem": {
+      "type": "string",
+      "description": "What forced the decision; what is the worst case if we get it wrong.",
+      "minLength": 30
+    },
+    "options": {
+      "type": "array",
+      "description": "The mutually-exclusive options under consideration. At least two options must be present, otherwise no decision is being made.",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^O-[0-9]{3}$" },
+          "summary": { "type": "string", "minLength": 10 },
+          "rejected_reason": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "description": "Rubric criteria each model is asked to score; same shape as docs/multi-model-judge.md.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "question"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^C-[0-9]{3}$" },
+          "question": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "verdicts": {
+      "type": "array",
+      "description": "One entry per allow-listed frontier model that voted. Must include >= 2 distinct providers per docs/multi-model-judge.md.",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["model_id", "provider", "chosen_option", "scores"],
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "description": "Must appear in docs/models.allowlist.yaml with role 'judge'."
+          },
+          "provider": { "type": "string", "minLength": 2 },
+          "chosen_option": { "type": "string", "pattern": "^O-[0-9]{3}$" },
+          "scores": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["criterion", "verdict", "rationale"],
+              "properties": {
+                "criterion": { "type": "string", "pattern": "^C-[0-9]{3}$" },
+                "verdict": { "type": "string", "enum": ["pass", "fail"] },
+                "rationale": { "type": "string", "minLength": 10 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chosen_option", "consensus", "rationale"],
+      "properties": {
+        "chosen_option": { "type": "string", "pattern": "^O-[0-9]{3}$" },
+        "consensus": {
+          "type": "string",
+          "enum": ["unanimous", "majority", "split"],
+          "description": "Default rubric requires unanimous; majority is allowed only when explicitly opted down per docs/multi-model-judge.md, never below."
+        },
+        "rationale": { "type": "string", "minLength": 30 }
+      }
+    },
+    "adr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative path to the ADR markdown produced from this decision.",
+          "pattern": "^docs/adr/[A-Za-z0-9_./-]+\\.md$"
+        }
+      }
+    }
+  }
+}

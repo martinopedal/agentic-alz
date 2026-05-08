@@ -3,14 +3,17 @@
 The "squad" pattern (popularised by [@bradygaster][bg]) lets a small team
 delegate well-scoped work to the GitHub Copilot **cloud agent** by turning a
 machine-readable roadmap into one GitHub issue per work item, with the agent
-auto-assigned where appropriate. This page documents how the pattern is
-implemented in `agentic-alz` and where the human-only guardrails sit.
+auto-assigned where appropriate. This page documents the **bootstrapper**
+(what it does, why, and how it stays idempotent). The per-task instructions
+live under [`docs/playbooks/`](playbooks/) — start at
+[`00-task-router.md`](playbooks/00-task-router.md).
 
 > **Companion pages.** [`local-dev.md`](local-dev.md) covers running the
 > deterministic pipeline on a developer laptop;
 > [`copilot-developer-setup.md`](copilot-developer-setup.md) lists which
 > Copilot CLI / VS Code / chat-mode / MCP features are sanctioned for
-> this repo and which are not. The cloud agent described here is **the
+> this repo. The agent-instruction surface every Copilot session
+> consults is [`AGENTS.md`](../AGENTS.md). The cloud agent is **the
 > only sanctioned channel for an LLM to open a PR** — local developers
 > must not have Copilot Chat or the Copilot CLI open PRs on their behalf
 > as a workaround for the eligibility gates below.
@@ -22,8 +25,10 @@ implemented in `agentic-alz` and where the human-only guardrails sit.
 | Piece | Purpose |
 | --- | --- |
 | [`ROADMAP.md`](../ROADMAP.md) | Single source of truth for planned work. One H3 + ` ```yaml ` block per item. |
-| [`schemas/roadmap.schema.json`](../schemas/roadmap.schema.json) | Validates the YAML metadata of every roadmap item. |
-| [`scripts/squad_bootstrap.py`](../scripts/squad_bootstrap.py) | Parser, validator, and idempotent GitHub upserter. Has `--dry-run`. |
+| [`schemas/roadmap.schema.json`](../schemas/roadmap.schema.json) | Validates the YAML metadata of every roadmap item. The optional `playbook:` field overrides the label-derived default. |
+| [`scripts/squad_bootstrap.py`](../scripts/squad_bootstrap.py) | Parser, validator, and idempotent GitHub upserter. Has `--dry-run`. Injects a `Playbook:` link into each issue body. |
+| [`docs/playbooks/`](playbooks/) | Per-task instruction sheets. The bootstrapper picks the right one from labels; `area:firewall` → 07, `area:ci` → 08, `area:llm`/`area:prompts`/`area:schemas` → 04, `area:security` → 05, `area:terraform`/`area:bicep` → 06; default `00-task-router.md`. |
+| [`AGENTS.md`](../AGENTS.md) | The agent-instruction surface every Copilot session reads. The Copilot stub at [`.github/copilot-instructions.md`](../.github/copilot-instructions.md) points at it; CI verifies they stay in sync. |
 | [`.github/workflows/squad.yml`](../.github/workflows/squad.yml) | Runs `--dry-run` on PRs and the real script on push to `main`, on a daily cron, and on `workflow_dispatch`. |
 | [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/) | Disables blank issues; routes humans to `roadmap-item.yml`, `bug.yml`, or `change-request.yml`. None of these are auto-assigned to the agent. |
 | [`.github/workflows/copilot-setup-steps.yml`](../.github/workflows/copilot-setup-steps.yml) | Cloud-agent environment accelerator. Preinstalls Python + the orchestrator (`pip install -e '.[dev]'`), Terraform, and Conftest before the agent starts a session, so agent runs match a contributor's local setup. |

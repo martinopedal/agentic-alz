@@ -6,6 +6,10 @@
 > deliberately not used, and which paths must remain off-limits to chat-
 > driven edits regardless of how convenient an LLM rewrite would be.
 >
+> **For agent-targeted instructions see [`AGENTS.md`](../AGENTS.md)** —
+> that file is the single source of truth every cloud agent and local
+> Copilot session reads. This page is the human policy mirror.
+>
 > If a section says `<TBD: NetSec to confirm>`, the default is the
 > conservative interpretation (i.e. **not** sanctioned) until a NetSec /
 > platform-team CODEOWNER signs off in a follow-up PR.

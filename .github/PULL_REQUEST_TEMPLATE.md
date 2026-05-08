@@ -11,6 +11,28 @@
 
 <!-- One paragraph: what this PR does and why, in plain language. -->
 
+## Playbook
+
+> Tick **exactly one** primary playbook from
+> [`docs/playbooks/`](../docs/playbooks/) and (optionally) list any
+> secondary playbooks you consulted as a sub-bullet. The
+> `rubberduck` workflow refuses PRs whose `## Playbook` section is
+> empty or has no tick. Start at
+> [`00-task-router.md`](../docs/playbooks/00-task-router.md) if you are
+> not sure which one applies.
+
+- [ ] `00-task-router.md` — exploratory / multi-area
+- [ ] `01-roadmap-item.md` — squad-bootstrapped issue
+- [ ] `02-bug-fix.md` — defect fix with regression test
+- [ ] `03-doc-only.md` — markdown / comment edits only
+- [ ] `04-prompt-or-schema-change.md` — sensitive
+- [ ] `05-policy-change.md` — sensitive
+- [ ] `06-iac-template-change.md` — sensitive
+- [ ] `07-firewall-lib-exemplar.md`
+- [ ] `08-ci-workflow-change.md` — sensitive
+- [ ] `09-incident-response.md`
+- [ ] `10-research-and-decide.md` — paired with a surface playbook
+
 ## Rubberduck
 
 > This section is **required**. See [docs/rubberduck.md](../docs/rubberduck.md).

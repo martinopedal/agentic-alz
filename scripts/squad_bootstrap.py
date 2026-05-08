@@ -74,6 +74,7 @@ class RoadmapItem:
     agent_eligible: bool
     depends_on: tuple[str, ...] = ()
     repo: str | None = None
+    playbook: str | None = None
 
 
 @dataclass
@@ -130,6 +131,7 @@ def parse_roadmap(text: str) -> list[RoadmapItem]:
                 agent_eligible=bool(raw.get("agent_eligible", False)),
                 depends_on=tuple(raw.get("depends_on") or ()),
                 repo=raw.get("repo"),
+                playbook=raw.get("playbook"),
             )
         )
     return items
@@ -182,6 +184,8 @@ def validate_items(items: list[RoadmapItem], schema_path: Path = SCHEMA_PATH) ->
         }
         if it.repo is not None:
             as_dict["repo"] = it.repo
+        if it.playbook is not None:
+            as_dict["playbook"] = it.playbook
         for err in validator.iter_errors(as_dict):
             errors.append(f"{it.id or '<unnamed>'}: {err.message}")
         if it.id in seen:
@@ -195,6 +199,37 @@ def validate_items(items: list[RoadmapItem], schema_path: Path = SCHEMA_PATH) ->
 
     if errors:
         raise ValueError("ROADMAP.md validation failed:\n  - " + "\n  - ".join(errors))
+
+
+def derive_playbook(item: RoadmapItem) -> str:
+    """Return the docs/playbooks/ filename that governs this work item.
+
+    Explicit ``item.playbook`` always wins. Otherwise we derive a default
+    from labels, in label-precedence order so the most specific surface
+    wins. The fallback is ``00-task-router.md`` — which is always safe:
+    the router will pick the right surface playbook on the first read.
+    """
+    if item.playbook:
+        return item.playbook
+    labels = set(item.labels)
+    # Order matters: the first matching rule wins.
+    rules: list[tuple[set[str], str]] = [
+        ({"area:firewall"}, "07-firewall-lib-exemplar.md"),
+        ({"area:ci"}, "08-ci-workflow-change.md"),
+        ({"area:llm"}, "04-prompt-or-schema-change.md"),
+        ({"area:prompts"}, "04-prompt-or-schema-change.md"),
+        ({"area:schemas"}, "04-prompt-or-schema-change.md"),
+        ({"area:security"}, "05-policy-change.md"),
+        ({"area:terraform"}, "06-iac-template-change.md"),
+        ({"area:bicep"}, "06-iac-template-change.md"),
+        ({"area:operate"}, "02-bug-fix.md"),
+        ({"area:bootstrap"}, "08-ci-workflow-change.md"),
+        ({"type:docs"}, "03-doc-only.md"),
+    ]
+    for required, playbook in rules:
+        if required.issubset(labels):
+            return playbook
+    return "00-task-router.md"
 
 
 def render_issue_body(item: RoadmapItem) -> str:
@@ -227,6 +262,8 @@ def render_issue_body(item: RoadmapItem) -> str:
             f"- **Labels**: {', '.join(f'`{lbl}`' for lbl in item.labels)}",
             f"- **Agent eligible**: {'yes' if item.agent_eligible else 'no'}",
             f"- **Depends on**: {', '.join(f'`{d}`' for d in item.depends_on) or '—'}",
+            f"- **Playbook**: [`docs/playbooks/{derive_playbook(item)}`]"
+            f"(../blob/main/docs/playbooks/{derive_playbook(item)})",
         ]
     )
     return "\n".join(lines) + "\n"

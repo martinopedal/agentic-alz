@@ -52,6 +52,7 @@ jobs:
               sys.exit(1)
 
           required_headings = [
+              "## Playbook",
               "## Rubberduck",
               "### What changed and why",
               "### What I considered and rejected",
@@ -64,6 +65,17 @@ jobs:
           if missing:
               for h in missing:
                   print(f"::error::missing required PR section: {h!r}")
+              sys.exit(1)
+
+          # The Playbook section must contain at least one ticked checkbox
+          # of the form "- [x] NN-...md". An empty section, or a section
+          # where every checkbox is unticked, fails the gate.
+          pb_start = body.index("## Playbook")
+          pb_tail = body[pb_start + len("## Playbook"):]
+          pb_next = pb_tail.find("\n## ")
+          pb_block = pb_tail if pb_next == -1 else pb_tail[:pb_next]
+          if not re.search(r"^\s*-\s*\[[xX]\]\s*`?[0-9]{2}-[a-z0-9-]+\.md`?", pb_block, re.MULTILINE):
+              print("::error::Playbook section must tick exactly one playbook (e.g. '- [x] `01-roadmap-item.md`')")
               sys.exit(1)
 
           # The author must replace each `<...>` placeholder under the
