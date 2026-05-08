@@ -4,4 +4,4 @@
 
 Index of `decision/<id>/` records produced by the [`10-research-and-decide.md`](../playbooks/10-research-and-decide.md) playbook. Each row links to the ADR synthesised from the decision (when one has been written).
 
-_No decision records yet._
+_No decision records yet. Folder `decision/` will be created on first use._
