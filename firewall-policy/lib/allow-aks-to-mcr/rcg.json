@@ -17,7 +17,9 @@
           "protocols": [
             { "type": "Https", "port": 443 }
           ],
-          "source_ip_groups": ["${aks_source_ip_group_ids}"],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks-example/providers/Microsoft.Network/ipGroups/aks-nodes"
+          ],
           "destination_fqdns": [
             "mcr.microsoft.com",
             "*.data.mcr.microsoft.com"

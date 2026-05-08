@@ -44,5 +44,10 @@ conftest test --parser hcl2 \
 ```
 
 The corresponding typed RCG document (one of the things the future MCP
-importer will produce) is in [`rcg.json`](rcg.json) and validates against
-[`schemas/rcg.schema.json`](../../../schemas/rcg.schema.json).
+importer will produce) is in [`rcg.json`](rcg.json) — populated with a
+**representative example** `source_ip_groups` value — and validates
+against
+[`schemas/rcg.schema.json`](../../../schemas/rcg.schema.json). At
+deployment time, consumers of this Terraform module pass their real IP
+group ids via the `aks_source_ip_group_ids` variable; the `rcg.json` is
+a static fixture for the schema and not a runtime input.
