@@ -421,7 +421,9 @@ def render_playbooks_index() -> tuple[str, list[Path]]:
         sensitive = "✓" if f"docs/playbooks/{f.name}" in co_text else " "
         title_m = re.search(r"^#\s+(.+?)\s*$", text, re.MULTILINE)
         title = title_m.group(1) if title_m else f.stem
-        nn = _PLAYBOOK_RX.match(f.name).group(1)  # type: ignore[union-attr]
+        nn_match = _PLAYBOOK_RX.match(f.name)
+        assert nn_match is not None  # filtered above
+        nn = nn_match.group(1)
         out.write(
             f"| {nn} | [`{f.name}`](../playbooks/{f.name}) — {title} | "
             f"{trig_excerpt[:80]} | {ci_str} | {sensitive} |\n"

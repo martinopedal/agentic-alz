@@ -56,7 +56,11 @@ def test_router_and_ten_surface_playbooks_exist() -> None:
     found = sorted(
         p.name for p in PLAYBOOKS_DIR.glob("*.md") if PLAYBOOK_NAME_RX.match(p.name)
     )
-    ids = {PLAYBOOK_NAME_RX.match(n).group(1) for n in found}  # type: ignore[union-attr]
+    ids: set[str] = set()
+    for n in found:
+        m = PLAYBOOK_NAME_RX.match(n)
+        assert m is not None  # filtered above
+        ids.add(m.group(1))
     assert ids >= {f"{i:02d}" for i in range(0, 11)}, f"missing playbook ids; have {ids}"
 
 
