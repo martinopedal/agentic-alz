@@ -99,6 +99,30 @@ jobs:
           terraform plan -input=false -no-color -out=tfplan
           terraform show -json tfplan > tfplan.json
 
+      - name: Content-address plan artifact (SHA-256)
+        id: plan_sha
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          # The saved binary plan is the immutable input that apply.yml
+          # consumes. Hashing it gives a stable handle the apply job (and
+          # human reviewers) can pin against; the JSON rendering is hashed
+          # alongside for traceability.
+          sha=$(sha256sum tfplan | awk '{print $1}')
+          json_sha=$(sha256sum tfplan.json | awk '{print $1}')
+          printf '%s  tfplan\n%s  tfplan.json\n' "$sha" "$json_sha" > tfplan.sha256
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "json_sha=${json_sha}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Terraform plan (\`${{ inputs.backend-key }}\`)"
+            echo
+            echo "| File | SHA-256 |"
+            echo "| --- | --- |"
+            echo "| \`tfplan\` | \`${sha}\` |"
+            echo "| \`tfplan.json\` | \`${json_sha}\` |"
+            echo
+            echo "Apply consumes \`tfplan\` only; the digest above is the artifact that must match on the PR check."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload immutable plan artifact
         uses: actions/upload-artifact@v4.4.3
         with:
@@ -106,6 +130,7 @@ jobs:
           path: |
             ${{ inputs.working-directory }}/tfplan
             ${{ inputs.working-directory }}/tfplan.json
+            ${{ inputs.working-directory }}/tfplan.sha256
           retention-days: 14
           if-no-files-found: error
 
@@ -121,6 +146,19 @@ jobs:
           delta=$(jq '.diffTotalMonthlyCost | tonumber' infracost.json)
           echo "Monthly delta USD: $delta"
           echo "INFRACOST_DELTA=$delta" >> "$GITHUB_ENV"
+
+      - name: Post Infracost diff as a sticky PR comment
+        # No-ops on non-pull_request triggers (e.g. push to main, manual
+        # dispatch). The action handles the missing PR context gracefully;
+        # the explicit `if` keeps the dry-run output clean.
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: infracost/actions/comment@v3
+        with:
+          path: ${{ inputs.working-directory }}/infracost.json
+          # `update` keeps a single sticky comment per (PR, behaviour-tag)
+          # pair so re-plans don't spam reviewers.
+          behavior: update
+          tag: ${{ inputs.backend-key }}
 
       - uses: actions/setup-python@v5
         with:
