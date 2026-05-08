@@ -100,7 +100,7 @@ jobs:
           terraform show -json tfplan > tfplan.json
 
       - name: Upload immutable plan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: tfplan-${{ inputs.backend-key }}
           path: |
@@ -140,7 +140,7 @@ jobs:
           cat risk.json
 
       - name: Upload risk report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: risk-${{ inputs.backend-key }}
           path: ${{ inputs.working-directory }}/risk.json
