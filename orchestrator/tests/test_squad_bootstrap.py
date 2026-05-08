@@ -212,6 +212,76 @@ def test_index_prefers_oldest_on_duplicate_marker() -> None:
 
 
 # ---------------------------------------------------------------------------
+# derive_playbook / Playbook line in body
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "labels, expected",
+    [
+        (("area:firewall",), "07-firewall-lib-exemplar.md"),
+        (("area:ci",), "08-ci-workflow-change.md"),
+        (("area:llm",), "04-prompt-or-schema-change.md"),
+        (("area:prompts",), "04-prompt-or-schema-change.md"),
+        (("area:schemas",), "04-prompt-or-schema-change.md"),
+        (("area:security",), "05-policy-change.md"),
+        (("area:terraform",), "06-iac-template-change.md"),
+        (("area:bicep",), "06-iac-template-change.md"),
+        (("area:bootstrap",), "08-ci-workflow-change.md"),
+        (("type:docs",), "03-doc-only.md"),
+        (("area:operate",), "02-bug-fix.md"),
+        (("unrelated",), "00-task-router.md"),
+    ],
+)
+def test_derive_playbook_from_labels(labels, expected) -> None:
+    assert sb.derive_playbook(_item(labels=labels)) == expected
+
+
+def test_derive_playbook_explicit_overrides_labels() -> None:
+    item = _item(labels=("area:firewall",), playbook="01-roadmap-item.md")
+    assert sb.derive_playbook(item) == "01-roadmap-item.md"
+
+
+def test_rendered_body_contains_playbook_line() -> None:
+    item = _item(id="pb-test", labels=("area:firewall",))
+    body = sb.render_issue_body(item)
+    assert "**Playbook**" in body
+    assert "07-firewall-lib-exemplar.md" in body
+
+
+def test_rendered_body_for_unknown_labels_defaults_to_router() -> None:
+    body = sb.render_issue_body(_item(id="default-pb", labels=("misc",)))
+    assert "00-task-router.md" in body
+
+
+def test_validate_accepts_explicit_playbook_field() -> None:
+    items = [
+        _item(
+            id="with-pb",
+            title="Item with playbook",
+            milestone="Phase X",
+            summary="A long enough summary " * 3,
+            acceptance_criteria=("Verifiable acceptance criterion",),
+            playbook="05-policy-change.md",
+        )
+    ]
+    sb.validate_items(items)  # must not raise
+
+
+def test_validate_rejects_malformed_playbook_field() -> None:
+    items = [
+        _item(
+            id="bad-pb",
+            title="Item with bad playbook",
+            milestone="Phase X",
+            summary="A long enough summary " * 3,
+            acceptance_criteria=("Verifiable acceptance criterion",),
+            playbook="not-a-playbook.txt",
+        )
+    ]
+    with pytest.raises(ValueError):
+        sb.validate_items(items)
+
+
+# ---------------------------------------------------------------------------
 # plan_operations — diff between desired and observed state
 # ---------------------------------------------------------------------------
 def test_plan_creates_when_no_existing_issue() -> None:

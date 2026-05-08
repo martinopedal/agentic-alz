@@ -9,9 +9,14 @@ on:
       - "policies/**"
       - "templates/**"
       - "scripts/**"
+      - "firewall-policy/**"
       - "docs/models.allowlist.yaml"
       - "docs/mcp.allowlist.yaml"
       - "docs/generated/**"
+      - "docs/playbooks/**"
+      - "AGENTS.md"
+      - ".github/copilot-instructions.md"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
       - ".github/workflows/ci.yml"
   push:
     branches: [main]
@@ -131,3 +136,126 @@ jobs:
             --policy policies \
             --namespace alz.mcp_allowlist \
             docs/mcp.allowlist.yaml
+
+      - name: Validate every firewall-policy/lib/*/main.tf with OPA
+        run: |
+          # Every pre-approved RCG module under firewall-policy/lib/ must
+          # pass policies/firewall_rules.rego (no wildcard
+          # destinations/ports/protocols, no overly broad FQDN wildcards).
+          # Fail-closed: new lib patterns are gated from day one.
+          conftest test \
+            --parser hcl2 \
+            --policy policies \
+            --namespace alz.firewall_rules \
+            firewall-policy/lib/*/main.tf
+
+  lint-instructions:
+    name: lint-instructions
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install PyYAML jsonschema
+      - name: Verify agent-instruction surfaces stay in sync
+        run: |
+          python - <<'PY'
+          import re, sys, hashlib, pathlib
+
+          root = pathlib.Path(".")
+          marker = "<!-- agent-instructions-canonical-source: AGENTS.md -->"
+          version_rx = re.compile(r"<!--\s*agent-instructions-version:\s*(v\d+)\s*-->")
+          surfaces = [
+              root / "AGENTS.md",
+              root / ".github" / "copilot-instructions.md",
+              root / "prompts" / "system" / "agent-preamble.v1.md",
+          ]
+          versions = set()
+          errors = []
+          for p in surfaces:
+              if not p.is_file():
+                  errors.append(f"missing required file: {p}")
+                  continue
+              text = p.read_text(encoding="utf-8")
+              if marker not in text:
+                  errors.append(f"{p}: missing canonical-source marker {marker!r}")
+              vm = version_rx.search(text)
+              if not vm:
+                  errors.append(f"{p}: missing agent-instructions-version marker")
+              else:
+                  versions.add(vm.group(1))
+          if len(versions) > 1:
+              errors.append(f"agent-instructions-version markers disagree across surfaces: {versions}")
+          for e in errors:
+              print(f"::error::{e}")
+          sys.exit(1 if errors else 0)
+          PY
+      - name: Verify playbook structure
+        run: |
+          python - <<'PY'
+          import re, sys, pathlib
+
+          pb = pathlib.Path("docs/playbooks")
+          rx = re.compile(r"^([0-9]{2})-[a-z0-9-]+\.md$")
+          required_h2 = ["## Triggers", "## Definition of Done", "## References"]
+          # Workflow basenames (stems of files under .github/workflows/).
+          workflows = {
+              p.stem for p in pathlib.Path(".github/workflows").glob("*.yml")
+          }
+          # A "CI ref" is `<workflow-stem> / <anything>` in a DoD bullet.
+          ci_ref_rx = re.compile(r"`(" + "|".join(re.escape(w) for w in workflows) + r")\s*/\s*[^`]+`")
+
+          # Must include at least the router and the 10 surface playbooks.
+          files = sorted(p for p in pb.glob("*.md") if rx.match(p.name))
+          ids = [rx.match(p.name).group(1) for p in files]
+          missing_ids = {f"{i:02d}" for i in range(0, 11)} - set(ids)
+          errors = []
+          if missing_ids:
+              errors.append(f"missing playbooks for ids: {sorted(missing_ids)}")
+          for p in files:
+              text = p.read_text(encoding="utf-8")
+              for h in required_h2:
+                  if h not in text:
+                      errors.append(f"{p}: missing required heading {h!r}")
+              # References block must list at least three URLs.
+              ref_block = re.search(r"^##\s+References\s*\n(.+?)\Z", text, re.DOTALL | re.MULTILINE)
+              if ref_block:
+                  urls = re.findall(r"https?://\S+", ref_block.group(1))
+                  if len(urls) < 3:
+                      errors.append(f"{p}: References must include >= 3 URLs (found {len(urls)})")
+              # Every playbook's DoD must reference at least one real CI job
+              # via the `<workflow> / ...` convention.
+              dod = re.search(r"^##\s+Definition of Done\s*\n(.+?)(?=^##\s|\Z)", text, re.DOTALL | re.MULTILINE)
+              if dod:
+                  refs = ci_ref_rx.findall(dod.group(1))
+                  if not refs:
+                      errors.append(
+                          f"{p}: Definition of Done must reference at least one CI job "
+                          f"using the `<workflow> / <job>` convention; valid workflow "
+                          f"basenames are {sorted(workflows)}"
+                      )
+          for e in errors:
+              print(f"::error::{e}")
+          sys.exit(1 if errors else 0)
+          PY
+      - name: Verify PR template carries the Playbook section
+        run: |
+          python - <<'PY'
+          import sys, pathlib
+          tpl = pathlib.Path(".github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8")
+          required = ["## Playbook", "## Rubberduck", "## Multi-model judge", "## Frontier-model attestation"]
+          missing = [h for h in required if h not in tpl]
+          if missing:
+              for h in missing:
+                  print(f"::error::PR template missing required section: {h!r}")
+              sys.exit(1)
+          PY
+      - name: Install orchestrator (provides agentic-alz CLI for cli.md)
+        working-directory: orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - name: Re-run gen_docs --check
+        run: python scripts/gen_docs.py --check

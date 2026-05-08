@@ -1,0 +1,27 @@
+{
+  "schema_version": "1",
+  "name": "allow-appservice-to-keyvault",
+  "description": "App Service egress to Azure Key Vault via regional AzureKeyVault service tag on TCP/443.",
+  "priority": 430,
+  "rule_collections": [
+    {
+      "name": "allow-appservice-to-keyvault",
+      "kind": "network",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "appservice-to-keyvault-regional",
+          "kind": "network",
+          "description": "Regional AzureKeyVault service tag, TCP/443 only.",
+          "protocols": ["TCP"],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-appservice-example/providers/Microsoft.Network/ipGroups/appservice-integration"
+          ],
+          "destination_addresses": ["AzureKeyVault.westeurope"],
+          "destination_ports": ["443"]
+        }
+      ]
+    }
+  ]
+}

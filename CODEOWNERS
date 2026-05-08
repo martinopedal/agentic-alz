@@ -31,3 +31,25 @@
 /orchestrator/agentic_alz/llm/              @martinopedal
 /orchestrator/agentic_alz/mcp/              @martinopedal
 /policies/mcp_allowlist.rego                @martinopedal
+
+# Agent-instruction surfaces. AGENTS.md and the Copilot custom-instructions
+# stub are the canonical guidance every agent (cloud + local) consults; the
+# `lint-instructions` CI job verifies they stay in sync. The runtime mirror
+# in prompts/system/ is the LLM-stage equivalent and is gated by the
+# multi-model judge.
+/AGENTS.md                                  @martinopedal
+/.github/copilot-instructions.md            @martinopedal
+/prompts/system/                            @martinopedal
+
+# Sensitive playbooks. These describe how to change the sensitive surfaces
+# above; their structure is enforced by `lint-instructions` and edits must
+# be reviewed by the same owner who owns the surface they govern.
+/docs/playbooks/04-prompt-or-schema-change.md  @martinopedal
+/docs/playbooks/05-policy-change.md            @martinopedal
+/docs/playbooks/06-iac-template-change.md      @martinopedal
+/docs/playbooks/08-ci-workflow-change.md       @martinopedal
+/docs/playbooks/10-research-and-decide.md      @martinopedal
+
+# Decision schema and decision/ research records. Adding a record is a normal
+# PR; changing the schema is sensitive (per playbook 04).
+/schemas/decision.schema.json               @martinopedal

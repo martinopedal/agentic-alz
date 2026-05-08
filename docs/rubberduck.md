@@ -65,3 +65,20 @@ These are complementary, not redundant:
   is asked of N allow-listed frontier models against a **fixed rubric** for
   PRs that touch prompts, golden templates, OPA policies, or ADRs. It is
   required on those classes of PR; optional otherwise.
+
+## Mapping rubberduck subsections to playbook Definition-of-Done items
+
+The four rubberduck subsections are deliberately the same shape across every
+playbook, so a reviewer can read them in the same order regardless of the
+PR's surface. The mapping below is what the `lint-instructions` job assumes:
+
+| Rubberduck subsection | Maps to which playbook item |
+| --- | --- |
+| `### What changed and why` | The "Steps" section of the chosen playbook — paraphrase the step you actually performed, not the full procedure. |
+| `### What I considered and rejected` | For sensitive surfaces, this is where you cite the `decision/<id>/` folder produced by [`10-research-and-decide.md`](playbooks/10-research-and-decide.md); for other PRs, it is the alternative implementations you ruled out. |
+| `### Blast radius` | The same surface table that drove your playbook choice — cite which sensitive paths your PR does and does not touch. For doc-only PRs, "documentation only" is acceptable. |
+| `### Self-review notes` | One bullet per Definition-of-Done item from your playbook that you re-checked manually after writing the diff. The CI gates already enforce most items; the bullets here are the ones you verified by hand. |
+
+If you cannot fill a subsection without reaching for "n/a", you have probably
+picked the wrong playbook — re-route via
+[`00-task-router.md`](playbooks/00-task-router.md).

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1",
+  "name": "allow-appservice-to-sql",
+  "description": "App Service egress to Azure SQL via regional Sql service tag on TCP/1433.",
+  "priority": 420,
+  "rule_collections": [
+    {
+      "name": "allow-appservice-to-sql",
+      "kind": "network",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "appservice-to-sql-regional",
+          "kind": "network",
+          "description": "Regional Sql service tag, TCP/1433 only.",
+          "protocols": ["TCP"],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-appservice-example/providers/Microsoft.Network/ipGroups/appservice-integration"
+          ],
+          "destination_addresses": ["Sql.westeurope"],
+          "destination_ports": ["1433"]
+        }
+      ]
+    }
+  ]
+}

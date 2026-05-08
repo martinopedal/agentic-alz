@@ -10,7 +10,8 @@ import pytest
 from agentic_alz.schema import SchemaValidationError, validate
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-RCG_FIXTURE = REPO_ROOT / "firewall-policy" / "lib" / "allow-aks-to-mcr" / "rcg.json"
+LIB_DIR = REPO_ROOT / "firewall-policy" / "lib"
+LIB_RCG_FIXTURES = sorted(LIB_DIR.glob("*/rcg.json"))
 
 
 def test_rcg_schema_loads() -> None:
@@ -21,8 +22,22 @@ def test_rcg_schema_loads() -> None:
     assert schema["title"].startswith("Typed Azure Firewall Rule Collection Group")
 
 
-def test_lib_example_validates_against_rcg_schema() -> None:
-    payload = json.loads(RCG_FIXTURE.read_text(encoding="utf-8"))
+def test_lib_has_at_least_one_rcg_fixture() -> None:
+    """Guard against the parametrised test silently passing on an empty set."""
+    assert LIB_RCG_FIXTURES, (
+        f"no rcg.json fixtures found under {LIB_DIR}; the lib must ship at "
+        "least one pre-approved RCG"
+    )
+
+
+@pytest.mark.parametrize(
+    "rcg_path",
+    LIB_RCG_FIXTURES,
+    ids=[p.parent.name for p in LIB_RCG_FIXTURES],
+)
+def test_lib_rcg_validates_against_schema(rcg_path: Path) -> None:
+    """Every firewall-policy/lib/<pattern>/rcg.json must validate."""
+    payload = json.loads(rcg_path.read_text(encoding="utf-8"))
     validate("rcg", payload)
 
 

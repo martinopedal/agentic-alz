@@ -1,0 +1,31 @@
+{
+  "schema_version": "1",
+  "name": "allow-aks-to-acr",
+  "description": "AKS nodes egress to a managed Azure Container Registry (control + regional data plane) over HTTPS.",
+  "priority": 410,
+  "rule_collections": [
+    {
+      "name": "allow-aks-to-acr",
+      "kind": "application",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "acr-control-and-data-plane",
+          "kind": "application",
+          "description": "ACR control-plane FQDN and the regional data-plane FQDN, fully qualified (no wildcards).",
+          "protocols": [
+            { "type": "Https", "port": 443 }
+          ],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks-example/providers/Microsoft.Network/ipGroups/aks-nodes"
+          ],
+          "destination_fqdns": [
+            "exampleacr.azurecr.io",
+            "exampleacr.westeurope.data.azurecr.io"
+          ]
+        }
+      ]
+    }
+  ]
+}

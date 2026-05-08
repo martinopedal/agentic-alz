@@ -1,0 +1,35 @@
+{
+  "schema_version": "1",
+  "name": "allow-mdc-agent",
+  "description": "Microsoft Defender for Cloud agent egress to documented ingestion endpoints over HTTPS.",
+  "priority": 460,
+  "rule_collections": [
+    {
+      "name": "allow-mdc-agent",
+      "kind": "application",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "mdc-agent-endpoints",
+          "kind": "application",
+          "description": "Documented MDC / Log Analytics / Azure Monitor endpoints; single-leftmost wildcards only.",
+          "protocols": [
+            { "type": "Https", "port": 443 }
+          ],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-arc-example/providers/Microsoft.Network/ipGroups/arc-machines"
+          ],
+          "destination_fqdns": [
+            "*.ods.opinsights.azure.com",
+            "*.oms.opinsights.azure.com",
+            "*.agentsvc.azure-automation.net",
+            "*.handler.control.monitor.azure.com",
+            "*.security.microsoft.com",
+            "gcs.prod.monitoring.core.windows.net"
+          ]
+        }
+      ]
+    }
+  ]
+}

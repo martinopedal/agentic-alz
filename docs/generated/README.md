@@ -11,3 +11,6 @@ These files are produced by [`scripts/gen_docs.py`](../../scripts/gen_docs.py) f
 - [`mcp.md`](mcp.md)
 - [`cli.md`](cli.md)
 - [`roadmap.md`](roadmap.md)
+- [`playbooks-index.md`](playbooks-index.md)
+- [`agent-instructions-hash.md`](agent-instructions-hash.md)
+- [`decisions-index.md`](decisions-index.md)
