@@ -102,6 +102,16 @@ See [`docs/phase-0-prerequisites.md`](docs/phase-0-prerequisites.md). Until
 Phase 0 is complete, this orchestrator can only generate, validate and lint
 Terraform — it cannot apply.
 
+## Lab mode (sandbox shortcut)
+
+For demo / training / experiment sandboxes,
+[`docs/lab-mode.md`](docs/lab-mode.md) describes
+`agentic-alz lab init`, which renders a self-contained Terraform bundle
+against a single sandbox subscription with local state. **Lab mode is a
+development crutch, not a production path** — the operator runs
+`terraform apply` themselves, and the CLI refuses any inputs whose
+`tags.defaults.Environment` is not `"sandbox"`.
+
 ## License
 
 [MIT](LICENSE)

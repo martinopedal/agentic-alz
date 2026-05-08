@@ -1,0 +1,55 @@
+budgets:
+  alert_thresholds_pct:
+  - 50
+  - 80
+  - 100
+  monthly_usd: 5000
+break_glass:
+  object_ids:
+  - aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+  - ffffffff-1111-2222-3333-444444444444
+connectivity:
+  firewall:
+    dns_proxy_enabled: true
+    policy_mode: federated
+    sku: Premium
+  hub_address_space:
+  - 10.0.0.0/22
+  topology: hub-and-spoke
+logging:
+  law_retention_days: 90
+  sentinel_enabled: false
+management_groups:
+  intermediate_id: alz
+  root_id: 11111111-2222-3333-4444-555555555555
+naming:
+  pattern: '{org}-{env}-{region}-{kind}-{seq}'
+org:
+  name: Acme Corp
+  short_code: acme
+platform_subscriptions:
+  connectivity:
+    display_name: acme-platform-connectivity
+    subscription_id: 00000000-0000-0000-0000-000000000002
+  identity:
+    display_name: acme-platform-identity
+    subscription_id: 00000000-0000-0000-0000-000000000003
+  management:
+    display_name: acme-platform-management
+    subscription_id: 00000000-0000-0000-0000-000000000001
+policy_baseline:
+  deltas: []
+  set: alz-default
+regions:
+  primary: westeurope
+  secondary: northeurope
+schema_version: '1'
+tags:
+  defaults:
+    Environment: platform
+  required:
+  - Owner
+  - CostCenter
+  - Environment
+tenant:
+  tenant_id: 11111111-2222-3333-4444-555555555555
