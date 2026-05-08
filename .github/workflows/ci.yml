@@ -8,6 +8,9 @@ on:
       - "evals/**"
       - "policies/**"
       - "templates/**"
+      - "scripts/**"
+      - "docs/models.allowlist.yaml"
+      - "docs/generated/**"
       - ".github/workflows/ci.yml"
   push:
     branches: [main]

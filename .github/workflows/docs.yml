@@ -1,0 +1,66 @@
+name: docs
+
+# Auto-generated documentation gate.
+# 1. Regenerate `docs/generated/` from the sources of truth.
+# 2. Fail the PR if the working tree is not byte-identical (the author must
+#    re-run `python scripts/gen_docs.py` and commit the result).
+# 3. Verify the model allowlist is parseable and consistent.
+
+on:
+  pull_request:
+    paths:
+      - "schemas/**"
+      - "prompts/**"
+      - "policies/**"
+      - "docs/models.allowlist.yaml"
+      - "orchestrator/agentic_alz/cli.py"
+      - "scripts/gen_docs.py"
+      - "docs/generated/**"
+      - ".github/workflows/docs.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Honour kill switch
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  generate-and-check:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: orchestrator/pyproject.toml
+      - name: Install orchestrator (provides agentic-alz CLI for cli.md)
+        working-directory: orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - name: Verify allowlist parses
+        run: |
+          python - <<'PY'
+          from agentic_alz.llm.models import load_allowlist, models_for_role
+          allow = load_allowlist()
+          print(f"{len(allow)} allowlisted models")
+          assert len(models_for_role('judge')) >= 2, "need >= 2 judge-eligible models"
+          providers = {e.provider for e in allow.values() if 'judge' in e.roles}
+          assert len(providers) >= 2, f"judge needs cross-provider diversity, got {providers}"
+          PY
+      - name: Regenerate docs and verify no diff
+        run: python scripts/gen_docs.py --check
