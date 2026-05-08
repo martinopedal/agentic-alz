@@ -1,0 +1,58 @@
+name: eval
+
+# Eval harness: replay golden runs through the deterministic stages and
+# (in production) deploy them to the spend-capped sandbox subscription with
+# forced `terraform destroy` cleanup.
+#
+# In v1 the spend-capped deploy step is gated on the `eval-sandbox`
+# environment; until that environment is configured the workflow runs only
+# the offline portion (validate-inputs + generate + risk against fixtures).
+
+on:
+  pull_request:
+    paths:
+      - "templates/**"
+      - "schemas/**"
+      - "evals/**"
+      - "orchestrator/**"
+      - "policies/**"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  offline:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - hns-minimal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install orchestrator
+        working-directory: orchestrator
+        run: |
+          pip install -e '.[dev]'
+      - name: Run replay harness for ${{ matrix.case }}
+        run: |
+          python evals/replay.py "evals/golden/${{ matrix.case }}"

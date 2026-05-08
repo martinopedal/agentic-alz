@@ -1,0 +1,147 @@
+name: plan
+
+# Reusable Terraform plan workflow. Produces a saved plan artifact, runs
+# Infracost diff, and computes the risk report. Does NOT apply.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        required: true
+      backend-resource-group:
+        type: string
+        required: true
+      backend-storage-account:
+        type: string
+        required: true
+      backend-container:
+        type: string
+        required: true
+      backend-key:
+        type: string
+        required: true
+      env:
+        type: string
+        required: false
+        default: "platform"
+      azure-client-id:
+        type: string
+        required: true
+      azure-tenant-id:
+        type: string
+        required: true
+      azure-subscription-id:
+        type: string
+        required: true
+    secrets:
+      INFRACOST_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  # State-file-level lock: only one plan/apply per state at a time.
+  group: plan-${{ inputs.backend-key }}
+  cancel-in-progress: false
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run if killed
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then exit 1; fi
+
+  plan:
+    needs: killswitch
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ inputs.azure-client-id }}
+          tenant-id: ${{ inputs.azure-tenant-id }}
+          subscription-id: ${{ inputs.azure-subscription-id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: terraform init
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ inputs.backend-resource-group }}" \
+            -backend-config="storage_account_name=${{ inputs.backend-storage-account }}" \
+            -backend-config="container_name=${{ inputs.backend-container }}" \
+            -backend-config="key=${{ inputs.backend-key }}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: terraform plan
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        run: |
+          terraform plan -input=false -no-color -out=tfplan
+          terraform show -json tfplan > tfplan.json
+
+      - name: Upload immutable plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.backend-key }}
+          path: |
+            ${{ inputs.working-directory }}/tfplan
+            ${{ inputs.working-directory }}/tfplan.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Install Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Infracost diff
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          infracost diff --path=tfplan.json --format=json --out-file=infracost.json
+          delta=$(jq '.diffTotalMonthlyCost | tonumber' infracost.json)
+          echo "Monthly delta USD: $delta"
+          echo "INFRACOST_DELTA=$delta" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install orchestrator
+        working-directory: orchestrator
+        run: pip install -e .
+
+      - name: Risk classification
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          agentic-alz risk \
+            --plan-json tfplan.json \
+            --env "${{ inputs.env }}" \
+            --infracost-delta-usd "${INFRACOST_DELTA:-0}" \
+            > risk.json
+          cat risk.json
+
+      - name: Upload risk report
+        uses: actions/upload-artifact@v4
+        with:
+          name: risk-${{ inputs.backend-key }}
+          path: ${{ inputs.working-directory }}/risk.json
+          retention-days: 30

@@ -1,0 +1,8 @@
+# CODEOWNERS for the alz-firewall-policy repo template.
+# Replace @netsec-team and @platform-team with real teams when this directory
+# is split into its own repo.
+
+* @netsec-team
+
+/policies/base/   @netsec-team
+/lib/             @netsec-team @platform-team
