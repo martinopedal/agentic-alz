@@ -1,0 +1,52 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "address": "module.firewall.azurerm_firewall.this",
+      "type": "azurerm_firewall",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": { "name": "myorg-plat-westeurope-afw", "location": "westeurope" }
+      }
+    },
+    {
+      "address": "module.law.azurerm_log_analytics_workspace.this",
+      "type": "azurerm_log_analytics_workspace",
+      "change": {
+        "actions": ["update"],
+        "before": { "retention_in_days": 30 },
+        "after": { "retention_in_days": 90, "name": "myorg-plat-westeurope-law", "location": "westeurope" }
+      }
+    },
+    {
+      "address": "module.old.azurerm_storage_account.legacy",
+      "type": "azurerm_storage_account",
+      "change": {
+        "actions": ["delete"],
+        "before": { "name": "legacysa", "location": "westeurope" },
+        "after": null
+      }
+    },
+    {
+      "address": "module.rbac.azurerm_role_assignment.platform_owner",
+      "type": "azurerm_role_assignment",
+      "change": {
+        "actions": ["create"],
+        "after": {
+          "role_definition_name": "Owner",
+          "scope": "/providers/Microsoft.Management/managementGroups/alz"
+        }
+      }
+    },
+    {
+      "address": "module.replace_me.azurerm_public_ip.fw_pip",
+      "type": "azurerm_public_ip",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": { "name": "old", "location": "westeurope" },
+        "after": { "name": "new", "location": "westeurope" }
+      }
+    }
+  ]
+}

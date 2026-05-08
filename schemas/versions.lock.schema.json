@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/versions.lock.schema.json",
+  "title": "AVM versions.lock",
+  "description": "Allowlist of approved Terraform module sources and exact versions. Every module in a generated template must appear here. Enforced by policies/avm_pinning.rego.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "modules"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "version", "approved_by", "approved_on"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^Azure/avm-(res|ptn)-[a-z0-9-]+/azurerm$",
+            "description": "Only Azure Verified Module sources from the public registry are permitted."
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?$"
+          },
+          "approved_by": {
+            "type": "string",
+            "minLength": 1,
+            "description": "GitHub handle of the platform engineer who reviewed this version."
+          },
+          "approved_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

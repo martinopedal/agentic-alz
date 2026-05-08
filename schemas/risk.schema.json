@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/risk.schema.json",
+  "title": "Agentic ALZ risk report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_sha",
+    "score",
+    "weight",
+    "counts",
+    "infracost_delta_usd",
+    "flags",
+    "requires_second_reviewer",
+    "blocks_auto_apply"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "plan_sha": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "description": "(destroyed + replaced) * env_weight + scaled cost delta + flag penalties."
+    },
+    "weight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["env", "value"],
+      "properties": {
+        "env":   { "type": "string", "enum": ["sandbox", "platform", "workload"] },
+        "value": { "type": "integer", "minimum": 1, "maximum": 50 }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["add", "change", "destroy", "replace"],
+      "properties": {
+        "add":     { "type": "integer", "minimum": 0 },
+        "change":  { "type": "integer", "minimum": 0 },
+        "destroy": { "type": "integer", "minimum": 0 },
+        "replace": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "infracost_delta_usd": { "type": "number" },
+    "flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "rbac",
+          "firewall",
+          "public-exposure",
+          "destructive",
+          "policy-assignment",
+          "key-vault-access",
+          "private-dns",
+          "data-deletion-risk"
+        ]
+      }
+    },
+    "requires_second_reviewer": { "type": "boolean" },
+    "blocks_auto_apply": {
+      "type": "boolean",
+      "description": "True for any platform-scope change in v1 (autonomous apply is non-goal)."
+    },
+    "summary_markdown": { "type": "string" }
+  }
+}

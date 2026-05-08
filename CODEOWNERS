@@ -1,0 +1,16 @@
+# CODEOWNERS for agentic-alz
+#
+# This file is intentionally minimal in v1. Replace `@martinopedal` with the
+# real owners (platform team for orchestrator/templates, NetSec for any
+# firewall-adjacent code) before going to production. The sibling
+# `alz-firewall-policy` repo MUST set NetSec as CODEOWNER on `policies/base/`
+# and `lib/`.
+
+* @martinopedal
+
+/orchestrator/                @martinopedal
+/templates/                   @martinopedal
+/policies/                    @martinopedal
+/firewall-policy/             @martinopedal
+/.github/workflows/           @martinopedal
+/bootstrap/                   @martinopedal

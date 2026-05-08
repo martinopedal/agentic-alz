@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/martinopedal/agentic-alz/schemas/design.schema.json",
+  "title": "Agentic ALZ design",
+  "description": "Typed output of the Design stage. Consumed by the Generate stage. The Design LLM may produce only fields defined here; any extra keys cause a hard validation failure.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inputs_sha",
+    "topology",
+    "modules",
+    "decisions",
+    "adr_markdown"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "inputs_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the inputs.yaml that produced this design."
+    },
+    "topology": { "type": "string", "enum": ["hub-and-spoke", "vwan"] },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["alias", "source", "version"],
+        "properties": {
+          "alias":   { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}$" },
+          "source":  { "type": "string", "minLength": 1 },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.-]+)?$",
+            "description": "Exact semver. No ranges, no 'main'."
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "choice", "rationale"],
+        "properties": {
+          "id":        { "type": "string", "pattern": "^D-[0-9]{3}$" },
+          "choice":    { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 10 },
+          "alternatives_rejected": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^https://learn\\.microsoft\\.com/"
+            }
+          }
+        }
+      }
+    },
+    "adr_markdown": {
+      "type": "string",
+      "minLength": 200,
+      "description": "Rendered ADR using docs/adr-template.md."
+    }
+  }
+}

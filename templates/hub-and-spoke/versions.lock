@@ -1,0 +1,63 @@
+{
+  "schema_version": "1",
+  "modules": [
+    {
+      "source": "Azure/avm-ptn-alz/azurerm",
+      "version": "0.11.1",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08",
+      "notes": "Pattern module for ALZ management group hierarchy + policy assignments. Verify against AVM index before first apply."
+    },
+    {
+      "source": "Azure/avm-ptn-network-hubnetworking/azurerm",
+      "version": "0.5.0",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08",
+      "notes": "Hub VNet pattern. Provides subnet conventions for Azure Firewall, Bastion, Gateway, Private Resolver."
+    },
+    {
+      "source": "Azure/avm-res-network-virtualnetwork/azurerm",
+      "version": "0.7.1",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08"
+    },
+    {
+      "source": "Azure/avm-res-network-azurefirewall/azurerm",
+      "version": "0.3.1",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08",
+      "notes": "Premium SKU with TLS inspection requires CA cert in Key Vault — out of scope for v1 skeleton."
+    },
+    {
+      "source": "Azure/avm-res-network-firewallpolicy/azurerm",
+      "version": "0.3.3",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08"
+    },
+    {
+      "source": "Azure/avm-res-network-routetable/azurerm",
+      "version": "0.4.0",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08"
+    },
+    {
+      "source": "Azure/avm-res-operationalinsights-workspace/azurerm",
+      "version": "0.4.2",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08"
+    },
+    {
+      "source": "Azure/avm-res-keyvault-vault/azurerm",
+      "version": "0.10.0",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08"
+    },
+    {
+      "source": "Azure/avm-res-storage-storageaccount/azurerm",
+      "version": "0.5.0",
+      "approved_by": "TBD",
+      "approved_on": "2026-05-08",
+      "notes": "Used for the cross-state interface artifacts blob. Backend state SA is created by bootstrap/phase1.sh, not by Terraform."
+    }
+  ]
+}
