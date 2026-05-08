@@ -9,6 +9,7 @@ on:
       - "policies/**"
       - "templates/**"
       - "scripts/**"
+      - "firewall-policy/**"
       - "docs/models.allowlist.yaml"
       - "docs/mcp.allowlist.yaml"
       - "docs/generated/**"
@@ -131,3 +132,15 @@ jobs:
             --policy policies \
             --namespace alz.mcp_allowlist \
             docs/mcp.allowlist.yaml
+
+      - name: Validate every firewall-policy/lib/*/main.tf with OPA
+        run: |
+          # Every pre-approved RCG module under firewall-policy/lib/ must
+          # pass policies/firewall_rules.rego (no wildcard
+          # destinations/ports/protocols, no overly broad FQDN wildcards).
+          # Fail-closed: new lib patterns are gated from day one.
+          conftest test \
+            --parser hcl2 \
+            --policy policies \
+            --namespace alz.firewall_rules \
+            firewall-policy/lib/*/main.tf

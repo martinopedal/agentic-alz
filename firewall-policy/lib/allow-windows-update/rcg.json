@@ -1,0 +1,29 @@
+{
+  "schema_version": "1",
+  "name": "allow-windows-update",
+  "description": "Windows VMs/VMSS to Windows Update via the Azure-curated WindowsUpdate FQDN tag.",
+  "priority": 450,
+  "rule_collections": [
+    {
+      "name": "allow-windows-update",
+      "kind": "application",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "windows-update-fqdn-tag",
+          "kind": "application",
+          "description": "Microsoft-curated WindowsUpdate FQDN tag; HTTP+HTTPS implied by the tag.",
+          "protocols": [
+            { "type": "Http", "port": 80 },
+            { "type": "Https", "port": 443 }
+          ],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-windows-clients-example/providers/Microsoft.Network/ipGroups/windows-clients"
+          ],
+          "destination_fqdn_tags": ["WindowsUpdate"]
+        }
+      ]
+    }
+  ]
+}

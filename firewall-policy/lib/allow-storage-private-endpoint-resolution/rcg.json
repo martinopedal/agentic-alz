@@ -1,0 +1,27 @@
+{
+  "schema_version": "1",
+  "name": "allow-storage-private-endpoint-resolution",
+  "description": "DNS-only flow to AzurePlatformDNS for resolving Private Endpoint FQDNs (TCP+UDP/53).",
+  "priority": 440,
+  "rule_collections": [
+    {
+      "name": "allow-storage-private-endpoint-resolution",
+      "kind": "network",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "dns-to-azure-platform-dns",
+          "kind": "network",
+          "description": "AzurePlatformDNS service tag on TCP and UDP, port 53 only.",
+          "protocols": ["TCP", "UDP"],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-clients-example/providers/Microsoft.Network/ipGroups/private-link-clients"
+          ],
+          "destination_addresses": ["AzurePlatformDNS"],
+          "destination_ports": ["53"]
+        }
+      ]
+    }
+  ]
+}
