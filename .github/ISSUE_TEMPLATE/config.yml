@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Roadmap-driven work
+    url: https://github.com/martinopedal/agentic-alz/blob/main/ROADMAP.md
+    about: Planned work lives in ROADMAP.md. Edit the roadmap and the squad bootstrap will open the issue.
+  - name: Security report
+    url: https://github.com/martinopedal/agentic-alz/security/advisories/new
+    about: Please report security vulnerabilities privately via GitHub Security Advisories.

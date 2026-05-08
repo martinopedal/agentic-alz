@@ -1,0 +1,90 @@
+name: "Copilot Setup Steps"
+
+# Cloud-agent environment accelerator (the bradygaster squad's other half).
+#
+# This workflow runs once per Copilot cloud-agent session, BEFORE the agent
+# starts work, so the ephemeral runner already has every tool the
+# `agent_eligible` roadmap items in ROADMAP.md will need:
+#
+#   * Python 3.11 + the orchestrator installed with `[dev]` extras
+#     (provides agentic-alz CLI, pytest, ruff, jsonschema, PyYAML).
+#   * Terraform — every Phase-2 roadmap item runs `terraform fmt/validate/plan`.
+#   * Conftest (OPA) — required by the AVM-pinning policy gate.
+#
+# Without this file the agent would either fail-fast on missing tools or burn
+# time discovering and installing them on every single task. With it, agent
+# sessions start in a known-good state and the only remaining variability is
+# the task itself.
+#
+# The job MUST be named `copilot-setup-steps` — Copilot will not pick it up
+# under any other name.
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Lowest permissions sufficient for `actions/checkout`. Copilot itself is
+    # given a separate token at task time.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: orchestrator/pyproject.toml
+
+      - name: Install orchestrator with dev extras
+        working-directory: orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          # Installs: click, jsonschema, PyYAML, pydantic, structlog,
+          # plus dev extras (pytest, pytest-cov, ruff). This is the same
+          # invocation documented in orchestrator/README.md, so the agent's
+          # environment matches a contributor's local setup.
+          pip install -e '.[dev]'
+
+      - name: Set up Terraform
+        # Pinned to the same minor that the apply workflow will use; the
+        # agent never runs `terraform apply`, but it does run plan/validate.
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Install Conftest (OPA)
+        # Used by policies/avm_pinning.rego to enforce AVM module pinning.
+        # Version pinned for deterministic agent environments.
+        env:
+          CONFTEST_VERSION: "0.56.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar -C /tmp -xzf /tmp/conftest.tar.gz conftest
+          sudo install -m 0755 /tmp/conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Smoke-test the environment matches the README
+        # If this fails, the agent's first task will also fail — better to
+        # catch it here on a workflow change than mid-session.
+        working-directory: orchestrator
+        run: |
+          python -c "import agentic_alz, jsonschema, yaml, click; print('orchestrator imports OK')"
+          ruff --version
+          pytest --collect-only -q > /dev/null
+          agentic-alz --help > /dev/null

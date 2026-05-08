@@ -64,6 +64,14 @@ These four are enforced on every PR by code, not by convention:
   [`agentic_alz.llm.models.assert_frontier`](orchestrator/agentic_alz/llm/models.py),
   which loads [`docs/models.allowlist.yaml`](docs/models.allowlist.yaml) and
   refuses any model id outside it.
+- **Cloud-agent squad.** [`ROADMAP.md`](ROADMAP.md) is the single source of
+  truth for planned work; [`scripts/squad_bootstrap.py`](scripts/squad_bootstrap.py)
+  upserts one GitHub issue per roadmap item (idempotent via an HTML-comment
+  marker) and assigns the Copilot cloud agent only when an item is opted in
+  (`agent_eligible: true`), all `depends_on` are closed, and no `human-only`
+  label is set. The agent's environment is preinstalled by
+  [`.github/workflows/copilot-setup-steps.yml`](.github/workflows/copilot-setup-steps.yml).
+  See [`docs/squad.md`](docs/squad.md).
 
 The sibling repos (`alz-platform`, `alz-firewall-policy`,
 `alz-workloads/<name>`) are described in the consensus plan and bootstrapped by

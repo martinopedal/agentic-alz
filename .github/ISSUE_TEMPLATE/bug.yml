@@ -1,0 +1,40 @@
+name: Bug report
+description: Something is broken in the orchestrator, templates, policies, or CI.
+title: "[bug] <short description>"
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bugs filed here are **not** auto-assigned to the Copilot cloud agent.
+        Triage moves them onto the roadmap (or labels them `incident`) before
+        agent work begins.
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: Include the command/workflow, the observed behaviour, and the expected behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, Terraform version, az CLI version, commit SHA.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / error output
+      render: shell

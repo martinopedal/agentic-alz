@@ -14,3 +14,11 @@
 /firewall-policy/             @martinopedal
 /.github/workflows/           @martinopedal
 /bootstrap/                   @martinopedal
+
+# Squad bootstrap: roadmap + script changes change which work the cloud agent
+# can pick up, so they require platform-team review.
+/ROADMAP.md                                 @martinopedal
+/scripts/squad_bootstrap.py                 @martinopedal
+/.github/workflows/squad.yml                @martinopedal
+/.github/workflows/copilot-setup-steps.yml  @martinopedal
+/schemas/roadmap.schema.json                @martinopedal

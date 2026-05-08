@@ -1,0 +1,102 @@
+name: squad
+
+# Roadmap-driven cloud-agent squad bootstrap.
+#
+# - On PRs touching the roadmap or the script, run `--dry-run` so reviewers
+#   see the diff a merge would produce against GitHub Issues.
+# - On push to main and on a daily cron, run for real so newly-unblocked
+#   items get picked up and assigned to @copilot.
+# - workflow_dispatch is provided for manual re-runs.
+#
+# Honours the AGENTIC_ALZ_DISABLED kill switch like every other workflow.
+
+on:
+  pull_request:
+    paths:
+      - "ROADMAP.md"
+      - "scripts/squad_bootstrap.py"
+      - "schemas/roadmap.schema.json"
+      - ".github/workflows/squad.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ROADMAP.md"
+      - "scripts/squad_bootstrap.py"
+      - "schemas/roadmap.schema.json"
+      - ".github/workflows/squad.yml"
+  schedule:
+    # Daily at 06:00 UTC — picks up items whose dependencies have just closed.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: squad-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  killswitch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Honour kill switch
+        env:
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: |
+          if [ "${AGENTIC_ALZ_DISABLED:-false}" = "true" ]; then
+            echo "::warning::kill switch engaged; halting squad bootstrap"
+            exit 1
+          fi
+
+  dry-run:
+    if: github.event_name == 'pull_request'
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: orchestrator/pyproject.toml
+      - name: Install orchestrator (provides PyYAML + jsonschema)
+        working-directory: orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+          pip install jsonschema
+      - name: Squad bootstrap — dry run
+        run: python scripts/squad_bootstrap.py --dry-run | tee plan.md
+      - name: Surface plan in PR job summary
+        run: |
+          {
+            echo "## Squad bootstrap plan (dry run)";
+            echo;
+            cat plan.md;
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  bootstrap:
+    if: github.event_name != 'pull_request'
+    needs: killswitch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: orchestrator/pyproject.toml
+      - name: Install orchestrator (provides PyYAML + jsonschema)
+        working-directory: orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+          pip install jsonschema
+      - name: Squad bootstrap — apply
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          AGENTIC_ALZ_DISABLED: ${{ vars.AGENTIC_ALZ_DISABLED }}
+        run: python scripts/squad_bootstrap.py

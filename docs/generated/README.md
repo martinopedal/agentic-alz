@@ -9,3 +9,4 @@ These files are produced by [`scripts/gen_docs.py`](../../scripts/gen_docs.py) f
 - [`policies.md`](policies.md)
 - [`models.md`](models.md)
 - [`cli.md`](cli.md)
+- [`roadmap.md`](roadmap.md)

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import io
 import json
 import re
@@ -236,6 +237,59 @@ def render_cli() -> tuple[str, list[Path]]:
 
 
 # ---------------------------------------------------------------------------
+# roadmap.md
+# ---------------------------------------------------------------------------
+def render_roadmap() -> tuple[str, list[Path]]:
+    """Render ROADMAP.md as a deterministic status table.
+
+    Live open/closed/in-progress state lives on GitHub Issues (the squad
+    bootstrap is responsible for that). This generated page is the
+    structural view: id, title, milestone, labels, agent eligibility,
+    dependencies — all derivable from the roadmap file alone, so the
+    generated-docs gate stays deterministic.
+    """
+    roadmap = REPO_ROOT / "ROADMAP.md"
+    script = REPO_ROOT / "scripts" / "squad_bootstrap.py"
+    # Import the parser from squad_bootstrap.py so there's a single source of
+    # truth for how the roadmap is read.
+    spec = importlib.util.spec_from_file_location("squad_bootstrap_for_docs", script)
+    assert spec and spec.loader
+    sb = importlib.util.module_from_spec(spec)
+    # Register before exec_module so dataclass introspection can resolve
+    # __module__ via sys.modules — required by Python 3.12+.
+    sys.modules["squad_bootstrap_for_docs"] = sb
+    spec.loader.exec_module(sb)
+    items = sb.parse_roadmap(roadmap.read_text(encoding="utf-8"))
+
+    out = io.StringIO()
+    out.write("# Roadmap\n\n")
+    out.write(
+        "Generated from [`ROADMAP.md`](../../ROADMAP.md). The roadmap is the "
+        "single source of truth for planned work; "
+        "[`scripts/squad_bootstrap.py`](../../scripts/squad_bootstrap.py) "
+        "upserts one GitHub issue per item (idempotent via the "
+        "`<!-- roadmap-id: ... -->` marker) and assigns the Copilot cloud "
+        "agent when an item is opted in. See "
+        "[`../squad.md`](../squad.md).\n\n"
+    )
+    # Group by milestone, preserving roadmap order.
+    by_milestone: dict[str, list] = {}
+    for it in items:
+        by_milestone.setdefault(it.milestone, []).append(it)
+    for milestone, group in by_milestone.items():
+        out.write(f"## {milestone}\n\n")
+        out.write("| id | Title | Agent eligible | Labels | Depends on |\n")
+        out.write("| --- | --- | :---: | --- | --- |\n")
+        for it in group:
+            agent = "✓" if it.agent_eligible else " "
+            labels = ", ".join(f"`{lbl}`" for lbl in it.labels)
+            deps = ", ".join(f"`{d}`" for d in it.depends_on) or "—"
+            out.write(f"| `{it.id}` | {it.title} | {agent} | {labels} | {deps} |\n")
+        out.write("\n")
+    return out.getvalue(), [roadmap, script]
+
+
+# ---------------------------------------------------------------------------
 # README index
 # ---------------------------------------------------------------------------
 def render_index() -> tuple[str, list[Path]]:
@@ -251,6 +305,7 @@ def render_index() -> tuple[str, list[Path]]:
         "- [`policies.md`](policies.md)\n"
         "- [`models.md`](models.md)\n"
         "- [`cli.md`](cli.md)\n"
+        "- [`roadmap.md`](roadmap.md)\n"
     )
     return out.getvalue(), []
 
@@ -264,6 +319,7 @@ RENDERERS = {
     "policies.md": render_policies,
     "models.md": render_models,
     "cli.md": render_cli,
+    "roadmap.md": render_roadmap,
     "README.md": render_index,
 }
 

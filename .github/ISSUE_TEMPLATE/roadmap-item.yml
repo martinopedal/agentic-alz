@@ -1,0 +1,54 @@
+name: Roadmap item (manual)
+description: File a new roadmap item by hand. Prefer editing ROADMAP.md when possible — that path is automatically idempotent.
+title: "[roadmap] <imperative title>"
+labels: ["type:roadmap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Manual roadmap entries do **not** carry the `<!-- roadmap-id: ... -->`
+        marker, so the squad bootstrap will not auto-assign them. After the
+        item is triaged, mirror it into [`ROADMAP.md`](../blob/main/ROADMAP.md)
+        so future runs of `scripts/squad_bootstrap.py` keep it in sync.
+  - type: input
+    id: proposed_id
+    attributes:
+      label: Proposed roadmap id (slug)
+      description: Lowercase, hyphenated, unique across ROADMAP.md.
+      placeholder: phase2-some-new-thing
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Target milestone
+      placeholder: "Phase 2 — Pipeline"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: One paragraph: why does this item exist?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Bullet list of verifiable conditions.
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: dropdown
+    id: agent_eligible
+    attributes:
+      label: Agent eligible?
+      description: Default is no. Choose yes only if the work touches no destructive paths and no sensitive directories (apply.yml, bootstrap/, policies/, prompts/, schemas/, docs/models.allowlist.yaml).
+      options:
+        - "no (default)"
+        - "yes"
+    validations:
+      required: true
