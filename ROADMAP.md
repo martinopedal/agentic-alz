@@ -313,8 +313,8 @@ agent_eligible: false
 depends_on: [phase2-validate-workflow]
 acceptance_criteria:
   - "docs/mcp.allowlist.yaml lists each permitted MCP server with mode (read/write) and notes"
-  - "agentic_alz.mcp.assert_allowed(server, tool, mode) refuses non-allowlisted servers and refuses mode='write' for any server in v1"
-  - "OPA policy enforces no PR may add 'mode: write' without NetSec CODEOWNER approval"
+  - "agentic_alz.mcp.assert_allowed(server, tool, mode) refuses non-allowlisted servers, refuses tools outside the per-server tool list, and refuses mode='write' for any server not explicitly approved for write"
+  - "OPA policy enforces no PR may add 'mode: write' without a netsec_approval block; CODEOWNERS adds NetSec review on the same paths"
   - "MCP-derived data is treated as untrusted: schema-validated and length-bounded before any downstream use"
 ```
 

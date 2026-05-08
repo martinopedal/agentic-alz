@@ -6,6 +6,15 @@ machine-readable roadmap into one GitHub issue per work item, with the agent
 auto-assigned where appropriate. This page documents how the pattern is
 implemented in `agentic-alz` and where the human-only guardrails sit.
 
+> **Companion pages.** [`local-dev.md`](local-dev.md) covers running the
+> deterministic pipeline on a developer laptop;
+> [`copilot-developer-setup.md`](copilot-developer-setup.md) lists which
+> Copilot CLI / VS Code / chat-mode / MCP features are sanctioned for
+> this repo and which are not. The cloud agent described here is **the
+> only sanctioned channel for an LLM to open a PR** — local developers
+> must not have Copilot Chat or the Copilot CLI open PRs on their behalf
+> as a workaround for the eligibility gates below.
+
 [bg]: https://github.com/bradygaster
 
 ## Pieces
@@ -57,6 +66,7 @@ label:
 * `prompts/` (LLM prompts; gated by the multi-model judge)
 * `schemas/` (typed contracts at stage boundaries)
 * `docs/models.allowlist.yaml` (frontier-model allowlist)
+* `docs/mcp.allowlist.yaml` (MCP server allowlist; see [`generated/mcp.md`](generated/mcp.md))
 
 These are the surfaces the consensus plan (`docs/consensus-plan.md`) calls
 out as destructive or LLM-sensitive. Roadmap items touching them remain
@@ -83,6 +93,24 @@ agree.
 
 The kill switch (`AGENTIC_ALZ_DISABLED` repo variable) halts both the
 workflow and the script itself.
+
+## Cloud agent vs. local developer
+
+The squad pattern delegates **autonomous, scoped, agent-eligible** work
+to the Copilot cloud agent. It does not replace local developers — the
+two channels do different things:
+
+| Channel | What it does | Where it runs |
+| --- | --- | --- |
+| Cloud agent (`@copilot` on a squad-bootstrapped issue) | Picks up a single roadmap item, opens a PR, responds to review feedback | Ephemeral GitHub-hosted runner with the env preinstalled by [`copilot-setup-steps.yml`](../.github/workflows/copilot-setup-steps.yml) |
+| Local developer | Anything that is `agent_eligible: false` (sensitive surfaces above), exploratory work, multi-item refactors, and any change that needs the multi-model judge | Your laptop — see [`local-dev.md`](local-dev.md) |
+| Copilot Chat / Copilot CLI on a developer laptop | Read-only exploration, drafting tests, drafting non-sensitive refactors. Author owns the diff. | Your laptop — see [`copilot-developer-setup.md`](copilot-developer-setup.md) |
+
+Local Copilot sessions **must not** open PRs on your behalf as a way of
+getting around the eligibility gates. If you want the agent to take a
+piece of work, change the roadmap entry to `agent_eligible: true` on a
+PR and merge it; the next squad run upserts the issue and assigns
+`@copilot` deterministically.
 
 ## Future fan-out
 

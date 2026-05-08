@@ -1,0 +1,134 @@
+# MCP server allowlist
+#
+# Agentic ALZ permits Model Context Protocol (MCP) server use ONLY against the
+# servers listed below. Any code path that reaches an MCP tool MUST first call
+# `agentic_alz.mcp.assert_allowed(server, tool, mode)`; unlisted servers,
+# unlisted tools, or unsanctioned modes raise `ServerNotAllowed` /
+# `ToolNotAllowed` / `ModeNotAllowed` and the run halts.
+#
+# This file is the runtime mirror of the architecture-level table in
+# `docs/consensus-plan.md §6`. It exists to ensure that a stage prompt that
+# names an MCP cannot, by construction, reach a tool the prompt did not declare
+# or call it in a mode the prompt did not declare.
+#
+# Modes
+# -----
+# * `read`    — server is invoked for read-only / advisory purposes. No
+#               mutation of Azure resources, no PR/issue creation, no Terraform
+#               state writes.
+# * `write`   — server is invoked for tools that mutate something. **Adding a
+#               server in `write` mode requires a NetSec CODEOWNER on the
+#               PR**: the OPA policy `policies/mcp_allowlist.rego` refuses any
+#               `write` entry that does not also carry a `netsec_approval`
+#               block (reviewer + date + justification).
+#
+# Apply path
+# ----------
+# `terraform apply` is NEVER an MCP-driven action. Apply runs only in the
+# protected `apply.yml` workflow against an immutable saved plan artifact.
+# No server below — including `github-mcp` in `write` mode — is permitted to
+# trigger an apply or to edit the apply workflow itself.
+#
+# Untrusted-input contract
+# ------------------------
+# Output from any MCP server is treated as untrusted. Callers MUST:
+#   1. Schema-validate the response against a JSON Schema the caller owns.
+#   2. Length-bound the response before logging or feeding it into a prompt.
+#   3. Never paste raw MCP output into Terraform — it must round-trip through
+#      a typed schema (`schemas/rcg.schema.json` for firewall, `schemas/
+#      design.schema.json` for design, etc.).
+#
+# Updating this file requires a PR with:
+#   1. Justification (why the server / tool / mode is necessary).
+#   2. The blast-radius statement (what the worst case is if the server lies).
+#   3. NetSec CODEOWNER review for any `mode: write` addition or change.
+#
+# Reviewed by: @platform-team @netsec-team
+
+schema_version: "1"
+last_reviewed: "2026-05-08"
+reviewed_by: ["@platform-team", "@netsec-team"]
+
+servers:
+  # --- Azure read-only inventory + RBAC reads ----------------------------
+  - id: "azure-mcp"
+    transport: "stdio"
+    mode: "read"
+    tools:
+      - "resources.list"
+      - "resources.get"
+      - "rbac.list_assignments"
+      - "policy.list_compliance_states"
+      - "monitor.query_logs"
+    notes: >-
+      Live inventory and RBAC reads, post-deploy polling. Used by Drift
+      Triage and (future) firewall import. Never mutates Azure state.
+
+  # --- ARM what-if (read-only) -------------------------------------------
+  - id: "arm-mcp"
+    transport: "stdio"
+    mode: "read"
+    tools:
+      - "deployments.what_if"
+      - "policy.simulate"
+    notes: >-
+      What-if for ARM/Bicep templates and policy assignment simulation.
+      Read-only by definition; cannot create or update deployments.
+
+  # --- Terraform module discovery (read-only) -----------------------------
+  - id: "terraform-mcp"
+    transport: "stdio"
+    mode: "read"
+    tools:
+      - "registry.search_modules"
+      - "registry.get_module_versions"
+      - "registry.get_module_metadata"
+    notes: >-
+      AVM module discovery and version resolution for the Design stage.
+      Never invoked at apply time. Output is cross-checked against
+      `templates/<topology>/versions.lock`.
+
+  # --- Microsoft Learn citations (advisory) -------------------------------
+  - id: "microsoft-learn-mcp"
+    transport: "stdio"
+    mode: "read"
+    tools:
+      - "search"
+      - "fetch_doc"
+    notes: >-
+      Advisory citations for the Design stage and ADRs. Output is
+      treated as **non-authoritative** for security-relevant decisions —
+      reviewers verify URLs by hand. See `docs/threat-model.md`.
+
+  # --- GitHub PR/issue write (sensitive) ---------------------------------
+  - id: "github-mcp"
+    transport: "stdio"
+    mode: "write"
+    tools:
+      # Strictly the PR/issue surface. NOT `repos.create_or_update_file`,
+      # NOT anything that pushes commits, NOT anything that touches the
+      # `prod` environment, NOT `actions.dispatch_workflow`.
+      - "pull_requests.create"
+      - "pull_requests.update"
+      - "pull_requests.add_comment"
+      - "pull_requests.request_review"
+      - "issues.create"
+      - "issues.update"
+      - "issues.add_comment"
+      - "issues.add_labels"
+      - "checks.list"
+      - "checks.get"
+    netsec_approval:
+      reviewer: "@netsec-team"
+      date: "2026-05-08"
+      justification: >-
+        The squad bootstrap and the Drift Triage stage need to open PRs
+        and issues. Tool list is restricted to the PR/issue surface;
+        `git push`, file edits via the GitHub Contents API, workflow
+        dispatch, and environment approvals are deliberately excluded.
+        Apply remains a CI job consuming an immutable saved plan
+        artifact — `github-mcp` cannot trigger or edit it.
+    notes: >-
+      PRs, issues, checks, and review requests only. The orchestrator
+      may never use this server to push commits, edit workflow files,
+      bypass branch protection, or approve a deployment environment.

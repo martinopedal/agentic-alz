@@ -22,3 +22,12 @@
 /.github/workflows/squad.yml                @martinopedal
 /.github/workflows/copilot-setup-steps.yml  @martinopedal
 /schemas/roadmap.schema.json                @martinopedal
+
+# Sensitive allowlists. Both files declare what LLM models / MCP servers the
+# orchestrator may reach at runtime. Adding an entry — especially an MCP
+# server in `mode: write` — must go through NetSec review.
+/docs/models.allowlist.yaml                 @martinopedal
+/docs/mcp.allowlist.yaml                    @martinopedal
+/orchestrator/agentic_alz/llm/              @martinopedal
+/orchestrator/agentic_alz/mcp/              @martinopedal
+/policies/mcp_allowlist.rego                @martinopedal
