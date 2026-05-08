@@ -1,0 +1,31 @@
+{
+  "schema_version": "1",
+  "name": "allow-aks-to-mcr",
+  "description": "AKS nodes egress to Microsoft Container Registry FQDNs over HTTPS.",
+  "priority": 400,
+  "rule_collections": [
+    {
+      "name": "allow-aks-to-mcr",
+      "kind": "application",
+      "priority": 100,
+      "action": "Allow",
+      "rules": [
+        {
+          "name": "mcr-and-data-mcr",
+          "kind": "application",
+          "description": "Microsoft Container Registry and the regional data-plane FQDNs.",
+          "protocols": [
+            { "type": "Https", "port": 443 }
+          ],
+          "source_ip_groups": [
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks-example/providers/Microsoft.Network/ipGroups/aks-nodes"
+          ],
+          "destination_fqdns": [
+            "mcr.microsoft.com",
+            "*.data.mcr.microsoft.com"
+          ]
+        }
+      ]
+    }
+  ]
+}

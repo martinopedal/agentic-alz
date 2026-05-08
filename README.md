@@ -64,6 +64,12 @@ These four are enforced on every PR by code, not by convention:
   [`agentic_alz.llm.models.assert_frontier`](orchestrator/agentic_alz/llm/models.py),
   which loads [`docs/models.allowlist.yaml`](docs/models.allowlist.yaml) and
   refuses any model id outside it.
+- **MCP servers only.** Every Model Context Protocol tool call goes through
+  [`agentic_alz.mcp.assert_allowed`](orchestrator/agentic_alz/mcp/__init__.py),
+  which loads [`docs/mcp.allowlist.yaml`](docs/mcp.allowlist.yaml) and
+  refuses unlisted servers, undeclared tools, or unsanctioned modes. Adding
+  a server in `mode: write` requires a NetSec CODEOWNER and an OPA-checked
+  `netsec_approval` block.
 - **Cloud-agent squad.** [`ROADMAP.md`](ROADMAP.md) is the single source of
   truth for planned work; [`scripts/squad_bootstrap.py`](scripts/squad_bootstrap.py)
   upserts one GitHub issue per roadmap item (idempotent via an HTML-comment
@@ -78,6 +84,11 @@ The sibling repos (`alz-platform`, `alz-firewall-policy`,
 [`bootstrap/phase1.sh`](bootstrap/phase1.sh).
 
 ## Quick start (development, no Azure required)
+
+For the full local workflow (running every CI gate on your laptop), see
+[`docs/local-dev.md`](docs/local-dev.md). For which Copilot CLI / VS Code
+features are sanctioned for this repo, see
+[`docs/copilot-developer-setup.md`](docs/copilot-developer-setup.md).
 
 ```bash
 cd orchestrator
@@ -101,6 +112,16 @@ agentic-alz risk --plan-json /tmp/plan.json
 See [`docs/phase-0-prerequisites.md`](docs/phase-0-prerequisites.md). Until
 Phase 0 is complete, this orchestrator can only generate, validate and lint
 Terraform — it cannot apply.
+
+## Lab mode (sandbox shortcut)
+
+For demo / training / experiment sandboxes,
+[`docs/lab-mode.md`](docs/lab-mode.md) describes
+`agentic-alz lab init`, which renders a self-contained Terraform bundle
+against a single sandbox subscription with local state. **Lab mode is a
+development crutch, not a production path** — the operator runs
+`terraform apply` themselves, and the CLI refuses any inputs whose
+`tags.defaults.Environment` is not `"sandbox"`.
 
 ## License
 

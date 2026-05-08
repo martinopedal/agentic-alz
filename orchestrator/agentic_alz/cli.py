@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 import click
@@ -18,10 +20,18 @@ import yaml
 from . import __version__
 from . import logging as alog
 from .killswitch import KillSwitchEngaged, assert_enabled
+from .llm.guard import LLMOutputInvalid
 from .llm.judge import aggregate, from_json
 from .llm.models import ModelNotAllowed, ModelRoleMismatch, models_for_role
 from .schema import SchemaValidationError, validate
 from .stages.generate import UnsupportedTopology, generate
+from .stages.interview import (
+    LiveModeNotImplemented,
+    TranscriptError,
+    load_transcript,
+    run_interview_live,
+    run_interview_offline,
+)
 from .stages.risk import classify
 from .terraform.wrapper import TerraformOperationDenied, evaluate
 
@@ -211,6 +221,151 @@ def models_cmd(role: str) -> None:
     """List allowlisted frontier models for a stage role."""
     for entry in models_for_role(role):
         click.echo(f"{entry.id}\t{entry.provider}\t{entry.notes}")
+
+
+@main.command("interview")
+@click.option(
+    "--transcript",
+    "transcript_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL transcript whose terminal assistant turn is the JSON inputs object.",
+)
+@click.option(
+    "--out",
+    "out_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Where to write the validated inputs.yaml; stdout if omitted.",
+)
+@click.option(
+    "--live",
+    is_flag=True,
+    default=False,
+    help="Invoke an allowlisted model. Not wired in v1 — exits non-zero.",
+)
+@click.option(
+    "--model",
+    "model_id",
+    default=None,
+    help="Model id (required with --live). Must be allowlisted for the 'interview' role.",
+)
+def interview_cmd(
+    transcript_path: Path,
+    out_path: Path | None,
+    live: bool,
+    model_id: str | None,
+) -> None:
+    """Run the Interview stage from a recorded transcript (offline by default)."""
+    log = alog.get_logger(__name__)
+    alog.set_stage("interview")
+    try:
+        transcript = load_transcript(transcript_path)
+    except TranscriptError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+
+    if live:
+        if not model_id:
+            click.echo("--live requires --model", err=True)
+            sys.exit(1)
+        try:
+            inputs = run_interview_live(transcript, model_id=model_id)
+        except (ModelNotAllowed, ModelRoleMismatch) as exc:
+            click.echo(str(exc), err=True)
+            sys.exit(4)
+        except LiveModeNotImplemented as exc:
+            click.echo(str(exc), err=True)
+            sys.exit(6)
+    else:
+        try:
+            inputs = run_interview_offline(transcript)
+        except (TranscriptError, LLMOutputInvalid) as exc:
+            click.echo(str(exc), err=True)
+            sys.exit(1)
+
+    rendered = yaml.safe_dump(inputs, sort_keys=True)
+    if out_path is None:
+        click.echo(rendered, nl=False)
+    else:
+        out_path.write_text(rendered, encoding="utf-8")
+        log.info("interview.done", out=str(out_path))
+        click.echo(f"wrote {out_path}")
+
+
+@main.group("lab")
+def lab_group() -> None:
+    """Lab-mode commands: fast sandbox bring-up. Never an apply path."""
+
+
+@lab_group.command("init")
+@click.option(
+    "--inputs",
+    "inputs_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+)
+@click.option(
+    "--out",
+    "out_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    required=True,
+    help="Destination .tar.gz containing the rendered Terraform working dir.",
+)
+def lab_init_cmd(inputs_path: Path, out_path: Path) -> None:
+    """Render a sandbox lab bundle from inputs.yaml.
+
+    Refuses unless ``tags.defaults.Environment == "sandbox"``. Honours the
+    global kill switch. Does NOT run ``terraform apply`` — the operator runs
+    it themselves on the rendered bundle, out of band.
+    """
+    log = alog.get_logger(__name__)
+    alog.set_stage("lab-init")
+    data = _load_yaml_or_json(inputs_path)
+    try:
+        validate("inputs", data)
+    except SchemaValidationError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+
+    env = (
+        data.get("tags", {})
+        .get("defaults", {})
+        .get("Environment")
+    )
+    if env != "sandbox":
+        click.echo(
+            "lab init refuses non-sandbox inputs: "
+            f"tags.defaults.Environment must be 'sandbox', got {env!r}",
+            err=True,
+        )
+        sys.exit(7)
+
+    with tempfile.TemporaryDirectory(prefix="alz-lab-") as work:
+        work_path = Path(work)
+        try:
+            manifest = generate(data, work_path)
+        except UnsupportedTopology as exc:
+            click.echo(str(exc), err=True)
+            sys.exit(1)
+        # Drop the production backend.tf — lab runs against local state by
+        # default. The operator is told this loud and clear in lab-mode.md.
+        backend_tf = work_path / "backend.tf"
+        if backend_tf.is_file():
+            backend_tf.unlink()
+            manifest["files"] = [f for f in manifest["files"] if f != "backend.tf"]
+        manifest_path = work_path / "lab-manifest.json"
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(out_path, "w:gz") as tar:
+            for path in sorted(work_path.rglob("*")):
+                if path.is_file():
+                    tar.add(path, arcname=str(path.relative_to(work_path)))
+
+    log.info("lab.init.done", out=str(out_path))
+    click.echo(json.dumps({"bundle": str(out_path), **manifest}, indent=2, sort_keys=True))
 
 
 def _load_yaml_or_json(path: Path) -> object:

@@ -8,5 +8,6 @@ These files are produced by [`scripts/gen_docs.py`](../../scripts/gen_docs.py) f
 - [`prompts.md`](prompts.md)
 - [`policies.md`](policies.md)
 - [`models.md`](models.md)
+- [`mcp.md`](mcp.md)
 - [`cli.md`](cli.md)
 - [`roadmap.md`](roadmap.md)

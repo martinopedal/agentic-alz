@@ -255,3 +255,126 @@ acceptance_criteria:
   - ".github/workflows/eval.yml is a required check on PRs"
   - "At least one golden run in evals/golden/ exercises the full generate -> validate path"
 ```
+
+---
+
+## Phase 3 — Agentic features (post PR #1)
+
+### LLM Interview runtime — wire prompts/interview.v1.md into a real stage
+
+```yaml
+id: llm-interview-runtime
+title: "Phase 3: wire prompts/interview.v1.md into orchestrator/agentic_alz/stages/interview.py"
+milestone: "Phase 3 — Agentic features"
+labels: [area:orchestrator, area:llm, human-only]
+agent_eligible: false
+depends_on: [phase2-validate-workflow, llm-interview-stage]
+acceptance_criteria:
+  - "stages/interview.py exposes run_interview_offline + run_interview_live; live mode gates on assert_frontier and Budget"
+  - "agentic-alz interview --transcript <jsonl> renders schema-valid inputs.yaml without an LLM call"
+  - "Live mode (--live --model) is wired to a real provider client and honours LLM_TOKEN_BUDGET"
+  - "evals/golden/interview-hns-minimal/ has a transcript whose terminal assistant turn round-trips to the existing hns-minimal inputs.yaml"
+```
+
+Stage-runtime code lives entirely in `orchestrator/`, but anything that
+adds a provider client or bumps the v1 prompt is sensitive — kept
+`human-only` until that lands. The offline transcript path is already
+implemented in PR following the squad bootstrap; this item tracks the
+remaining live-mode wiring.
+
+### Lab mode bundle — fast sandbox bring-up
+
+```yaml
+id: lab-mode-bundle
+title: "Phase 3: lab mode emits a self-contained sandbox bundle"
+milestone: "Phase 3 — Agentic features"
+labels: [area:orchestrator, area:operate]
+agent_eligible: true
+depends_on: [phase2-validate-workflow]
+acceptance_criteria:
+  - "agentic-alz lab init --inputs --out emits a tar.gz with rendered Terraform + lab-manifest.json"
+  - "CLI refuses inputs whose tags.defaults.Environment != 'sandbox'"
+  - "Bundle strips the production backend.tf so labs run on local state"
+  - "docs/lab-mode.md documents the path including a red banner on local state"
+  - "AGENTIC_ALZ_DISABLED short-circuits lab init"
+```
+
+Pure orchestrator + docs + golden fixture; no apply path, no LLM, no
+sensitive-surface changes — eligible for the agent.
+
+### MCP server allowlist
+
+```yaml
+id: mcp-allowlist
+title: "Phase 3: docs/mcp.allowlist.yaml + agentic_alz.mcp.assert_allowed wrapper"
+milestone: "Phase 3 — Agentic features"
+labels: [area:orchestrator, area:security, human-only]
+agent_eligible: false
+depends_on: [phase2-validate-workflow]
+acceptance_criteria:
+  - "docs/mcp.allowlist.yaml lists each permitted MCP server with mode (read/write) and notes"
+  - "agentic_alz.mcp.assert_allowed(server, tool, mode) refuses non-allowlisted servers, refuses tools outside the per-server tool list, and refuses mode='write' for any server not explicitly approved for write"
+  - "OPA policy enforces no PR may add 'mode: write' without a netsec_approval block; CODEOWNERS adds NetSec review on the same paths"
+  - "MCP-derived data is treated as untrusted: schema-validated and length-bounded before any downstream use"
+```
+
+New sensitive surface, parallel to `docs/models.allowlist.yaml`. Stays
+human-driven for the same reasons.
+
+### Typed RCG schema
+
+```yaml
+id: firewall-rcg-schema
+title: "Phase 3: schemas/rcg.schema.json types Rule Collection Groups end-to-end"
+milestone: "Phase 3 — Agentic features"
+labels: [area:schemas, area:security, human-only]
+agent_eligible: false
+depends_on: [phase2-validate-workflow]
+acceptance_criteria:
+  - "schemas/rcg.schema.json validates network and application rule collections with priority + action"
+  - "Wildcard FQDNs and wildcard destinations are rejected at schema level (defence in depth with policies/firewall_rules.rego)"
+  - "Round-trip test: every firewall-policy/lib/<pattern>/rcg.json validates against the schema"
+  - "Composer prompt and (future) firewall importer both produce documents that validate against this schema"
+```
+
+Schema lives under `schemas/` — `human-only` per the consensus plan.
+The first-cut document is in this PR; further iteration tracked here.
+
+### Firewall lib skeleton — concrete pre-approved RCGs
+
+```yaml
+id: firewall-lib-skeleton-example
+title: "Phase 3: in-repo firewall-policy/lib/<pattern>/ exemplars"
+milestone: "Phase 3 — Agentic features"
+labels: [area:firewall, area:terraform]
+agent_eligible: true
+depends_on: [firewall-rcg-schema]
+acceptance_criteria:
+  - "Each lib pattern has main.tf + variables.tf + README.md + rcg.json"
+  - "Every rcg.json validates against schemas/rcg.schema.json"
+  - "policies/firewall_rules.rego passes against each main.tf"
+  - "At least the patterns enumerated in firewall-policy/lib/README.md ship as exemplars"
+```
+
+In-repo only — does not touch the real `alz-firewall-policy` sibling
+repo (which is created by the human-only `phase1-sibling-repos`).
+
+### Firewall importer — read-only MCP -> typed RCG diff
+
+```yaml
+id: firewall-import-stage
+title: "Phase 3: orchestrator stage imports live firewall state via Azure/ARM MCP (read-only)"
+milestone: "Phase 3 — Agentic features"
+labels: [area:orchestrator, area:firewall, area:security, human-only]
+agent_eligible: false
+depends_on: [mcp-allowlist, firewall-rcg-schema, phase1-sibling-repos]
+acceptance_criteria:
+  - "stages/firewall_import.py calls Azure MCP / ARM MCP read-only tools only (enforced by mcp.assert_allowed)"
+  - "Output normalises to schemas/rcg.schema.json; raw Azure JSON is never pasted into Terraform"
+  - "Diff against firewall-policy/lib/ HEAD is emitted as both markdown and machine-readable JSON"
+  - "Nightly run files an issue (not a PR) on drift, symmetric to the platform drift detector"
+  - "Composer-driven write path opens a PR against alz-firewall-policy and never pushes to main"
+```
+
+The full read-only importer + Composer write path. Stays `human-only`
+for v1 — depends on the real sibling repo and on the new MCP allowlist.

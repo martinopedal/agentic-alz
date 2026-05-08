@@ -1,0 +1,44 @@
+schema_version: "1"
+org:
+  name: "Lab Sandbox"
+  short_code: "lab"
+tenant:
+  tenant_id: "11111111-2222-3333-4444-555555555555"
+management_groups:
+  root_id: "11111111-2222-3333-4444-555555555555"
+  intermediate_id: "lab"
+platform_subscriptions:
+  management:
+    subscription_id: "00000000-0000-0000-0000-00000000aaaa"
+    display_name: "lab-sandbox"
+  connectivity:
+    subscription_id: "00000000-0000-0000-0000-00000000aaaa"
+    display_name: "lab-sandbox"
+  identity:
+    subscription_id: "00000000-0000-0000-0000-00000000aaaa"
+    display_name: "lab-sandbox"
+regions:
+  primary: "westeurope"
+connectivity:
+  topology: "hub-and-spoke"
+  hub_address_space:
+    - "10.10.0.0/22"
+  firewall:
+    sku: "Standard"
+    policy_mode: "central"
+    dns_proxy_enabled: false
+logging:
+  law_retention_days: 30
+  sentinel_enabled: false
+policy_baseline:
+  set: "alz-default"
+  deltas: []
+naming:
+  pattern: "{org}-{env}-{region}-{kind}-{seq}"
+tags:
+  required:
+    - "Owner"
+    - "CostCenter"
+    - "Environment"
+  defaults:
+    Environment: "sandbox"

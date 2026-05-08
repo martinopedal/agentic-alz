@@ -10,6 +10,7 @@ on:
       - "templates/**"
       - "scripts/**"
       - "docs/models.allowlist.yaml"
+      - "docs/mcp.allowlist.yaml"
       - "docs/generated/**"
       - ".github/workflows/ci.yml"
   push:
@@ -118,3 +119,15 @@ jobs:
           # outcome for this sample. Exit 2 = error parsing or executing.
           if [ $rc -eq 2 ]; then exit 2; fi
           exit 0
+
+      - name: Validate the MCP allowlist with OPA
+        run: |
+          # The mcp.allowlist.yaml file is itself shape-validated by
+          # policies/mcp_allowlist.rego — write-mode entries without a
+          # netsec_approval block, unknown modes, or forbidden github-mcp
+          # tools all fail here.
+          conftest test \
+            --parser yaml \
+            --policy policies \
+            --namespace alz.mcp_allowlist \
+            docs/mcp.allowlist.yaml

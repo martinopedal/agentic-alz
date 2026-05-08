@@ -13,6 +13,7 @@ Generated outputs (under ``docs/generated/``):
 * ``prompts.md``    — index of LLM prompts with stage/version metadata.
 * ``policies.md``   — index of OPA policies with their package + summary.
 * ``models.md``     — frontier model allowlist as a table.
+* ``mcp.md``        — MCP server allowlist as a table.
 * ``cli.md``        — ``agentic-alz --help`` output for every subcommand.
 
 Usage:
@@ -199,6 +200,52 @@ def render_models() -> tuple[str, list[Path]]:
 
 
 # ---------------------------------------------------------------------------
+# mcp.md
+# ---------------------------------------------------------------------------
+def render_mcp() -> tuple[str, list[Path]]:
+    src = REPO_ROOT / "docs" / "mcp.allowlist.yaml"
+    raw = yaml.safe_load(src.read_text(encoding="utf-8"))
+    out = io.StringIO()
+    out.write("# MCP server allowlist\n\n")
+    out.write(
+        "Single source of truth: "
+        "[`docs/mcp.allowlist.yaml`](../mcp.allowlist.yaml). "
+        f"Last reviewed: **{raw.get('last_reviewed', '—')}**.\n\n"
+    )
+    out.write(
+        "Every code path that reaches an MCP tool must call "
+        "`agentic_alz.mcp.assert_allowed(server, tool, mode)`. "
+        "Adding a server in `mode: write` requires a NetSec CODEOWNER on the PR; "
+        "the OPA policy [`policies/mcp_allowlist.rego`](../../policies/mcp_allowlist.rego) "
+        "refuses any `write` entry without a `netsec_approval` block.\n\n"
+    )
+    out.write("| Server id | Transport | Mode | Tools | Notes |\n")
+    out.write("| --- | --- | --- | --- | --- |\n")
+    for s in raw.get("servers", []):
+        tools = ", ".join(f"`{t}`" for t in s.get("tools", []))
+        notes = (s.get("notes") or "").replace("\n", " ").strip()
+        out.write(
+            f"| `{s['id']}` | `{s['transport']}` | `{s['mode']}` | {tools} | {notes} |\n"
+        )
+    out.write("\n")
+    # NetSec approvals appendix.
+    write_entries = [s for s in raw.get("servers", []) if s.get("mode") == "write"]
+    if write_entries:
+        out.write("## NetSec approvals (mode: write)\n\n")
+        out.write("| Server id | Reviewer | Date | Justification |\n")
+        out.write("| --- | --- | --- | --- |\n")
+        for s in write_entries:
+            ap = s.get("netsec_approval") or {}
+            just = (ap.get("justification") or "").replace("\n", " ").strip()
+            out.write(
+                f"| `{s['id']}` | {ap.get('reviewer', '—')} | "
+                f"{ap.get('date', '—')} | {just} |\n"
+            )
+        out.write("\n")
+    return out.getvalue(), [src]
+
+
+# ---------------------------------------------------------------------------
 # cli.md
 # ---------------------------------------------------------------------------
 def render_cli() -> tuple[str, list[Path]]:
@@ -304,6 +351,7 @@ def render_index() -> tuple[str, list[Path]]:
         "- [`prompts.md`](prompts.md)\n"
         "- [`policies.md`](policies.md)\n"
         "- [`models.md`](models.md)\n"
+        "- [`mcp.md`](mcp.md)\n"
         "- [`cli.md`](cli.md)\n"
         "- [`roadmap.md`](roadmap.md)\n"
     )
@@ -318,6 +366,7 @@ RENDERERS = {
     "prompts.md": render_prompts,
     "policies.md": render_policies,
     "models.md": render_models,
+    "mcp.md": render_mcp,
     "cli.md": render_cli,
     "roadmap.md": render_roadmap,
     "README.md": render_index,
