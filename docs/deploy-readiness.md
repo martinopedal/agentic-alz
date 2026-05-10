@@ -26,7 +26,10 @@ Run the full local path with:
 
 ```bash
 cd /path/to/agentic-alz
-cd orchestrator && pip install -e '.[dev]' && cd ..
+cd orchestrator
+python -m venv .venv && . .venv/bin/activate
+pip install -e '.[dev]'
+cd ..
 scripts/e2e-demo.sh
 ```
 

@@ -17,10 +17,33 @@ if ! command -v agentic-alz >/dev/null 2>&1; then
 agentic-alz is not on PATH.
 Run:
   cd orchestrator
+  python -m venv .venv && . .venv/bin/activate
   pip install -e '.[dev]'
 EOF
   exit 127
 fi
+
+require_agentic_tmp_path() {
+  local name="$1"
+  local path="$2"
+
+  if [[ -z "${path}" || "${path}" == "/" || "${path}" == "." || "${path}" == ".." ]]; then
+    echo "${name} must not be empty or a root/current-directory path" >&2
+    exit 2
+  fi
+
+  case "${path}" in
+    /tmp/agentic-alz-*) ;;
+    *)
+      echo "${name} must be under /tmp/agentic-alz-* for safe cleanup: ${path}" >&2
+      exit 2
+      ;;
+  esac
+}
+
+require_agentic_tmp_path "ALZ_DEMO_OUT" "${ALZ_DEMO_OUT}"
+require_agentic_tmp_path "ALZ_DEMO_INTERVIEW_OUT" "${ALZ_DEMO_INTERVIEW_OUT}"
+require_agentic_tmp_path "ALZ_DEMO_LAB_BUNDLE" "${ALZ_DEMO_LAB_BUNDLE}"
 
 rm -rf "${ALZ_DEMO_OUT}"
 rm -f "${ALZ_DEMO_INTERVIEW_OUT}" "${ALZ_DEMO_LAB_BUNDLE}"
