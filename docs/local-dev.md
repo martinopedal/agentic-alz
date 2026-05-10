@@ -51,6 +51,18 @@ Every command below runs offline, against
 [`evals/golden/hns-minimal/`](../evals/golden/hns-minimal/), and never
 touches Azure.
 
+To run the same deterministic path as one local smoke test:
+
+```bash
+scripts/e2e-demo.sh
+```
+
+The script validates inputs, replays the offline interview fixture, generates
+Terraform, classifies a saved plan fixture, checks the saved-plan Terraform
+policy, creates a sandbox lab bundle, and replays all golden eval cases. See
+[`deploy-readiness.md`](deploy-readiness.md) for what this proves and which
+production deploy gaps remain human-owned.
+
 ```bash
 # 1. Validate the inputs against schemas/inputs.schema.json.
 agentic-alz validate-inputs evals/golden/hns-minimal/inputs.yaml
@@ -67,8 +79,8 @@ agentic-alz risk \
 
 # 4. Evaluate a Terraform CLI argv against the v1 safety policy
 #    (this is what the apply workflow uses to refuse risky invocations).
-agentic-alz tf-policy plan -out=tfplan
-agentic-alz tf-policy apply tfplan
+agentic-alz tf-policy -- plan -out=tfplan
+agentic-alz tf-policy -- apply tfplan
 ```
 
 ### Interview stage (offline)
