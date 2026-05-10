@@ -113,6 +113,10 @@ See [`docs/phase-0-prerequisites.md`](docs/phase-0-prerequisites.md). Until
 Phase 0 is complete, this orchestrator can only generate, validate and lint
 Terraform — it cannot apply.
 
+For the current deploy-readiness inventory, including the deterministic
+end-to-end demo and remaining human-only production gaps, see
+[`docs/deploy-readiness.md`](docs/deploy-readiness.md).
+
 ## Lab mode (sandbox shortcut)
 
 For demo / training / experiment sandboxes,
