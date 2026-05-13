@@ -77,7 +77,11 @@ These four are enforced on every PR by code, not by convention:
   (`agent_eligible: true`), all `depends_on` are closed, and no `human-only`
   label is set. The agent's environment is preinstalled by
   [`.github/workflows/copilot-setup-steps.yml`](.github/workflows/copilot-setup-steps.yml).
-  See [`docs/squad.md`](docs/squad.md).
+  See [`docs/squad.md`](docs/squad.md). _(Note: this is the GitHub
+  issue-management feature — not to be confused with the `.squad/`
+  directory in the repo tree, which is internal coordination tooling for
+  the AI maintenance team. See the maintainer area at the bottom of this
+  README.)_
 
 The sibling repos (`alz-platform`, `alz-firewall-policy`,
 `alz-workloads/<name>`) are described in the consensus plan and bootstrapped by
@@ -126,6 +130,30 @@ against a single sandbox subscription with local state. **Lab mode is a
 development crutch, not a production path** — the operator runs
 `terraform apply` themselves, and the CLI refuses any inputs whose
 `tags.defaults.Environment` is not `"sandbox"`.
+
+<details>
+<summary>🛠️ Maintainer area — internal coordination tooling</summary>
+
+This repository uses [squad-cli](https://github.com/bradygaster/squad) — an
+in-repo coordination layer for the AI maintenance team. The roster, charters,
+decisions, ceremonies, and orchestration logs live under `.squad/` and are
+**not part of the Agentic ALZ product surface**. End users and external
+contributors can safely ignore the `.squad/` directory entirely.
+
+There is a naming collision worth flagging: the **public Cloud-agent squad**
+(documented above and in [`docs/squad.md`](docs/squad.md)) refers to the
+GitHub issue-management automation powered by `scripts/squad_bootstrap.py`.
+The **internal `.squad/` coordination layer** refers to Brady Gaster's
+`squad-cli` convention used by the AI maintenance team. Both exist; they
+serve different purposes.
+
+If you are a **maintainer** working with the squad coordination layer, see
+[`docs/maintaining/squad.md`](docs/maintaining/squad.md) for an overview of
+the directories, standing directives, and key references. If you are an
+**end user of Agentic ALZ**, you can ignore this section and the `.squad/`
+directory entirely.
+
+</details>
 
 ## License
 

@@ -53,3 +53,9 @@
 # Decision schema and decision/ research records. Adding a record is a normal
 # PR; changing the schema is sensitive (per playbook 04).
 /schemas/decision.schema.json               @martinopedal
+
+# Squad coordination layer — internal AI maintenance team tooling. Hidden from
+# the public product surface (see docs/maintaining/squad.md). Any change here
+# affects how the squad coordinates and must stay maintainer-only.
+/.squad/                                    @martinopedal
+/docs/maintaining/                          @martinopedal
