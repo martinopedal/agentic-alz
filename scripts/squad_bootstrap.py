@@ -605,15 +605,31 @@ def main(argv: list[str]) -> int:
     for ip in plan.issues:
         item = ip.item
         if ip.action == "create":
-            assignees = [COPILOT_ASSIGNEE] if ip.assign_copilot else []
+            # GitHub's POST /repos/{owner}/{repo}/issues endpoint refuses to
+            # assign the Copilot coding agent (copilot-swe-agent) at issue
+            # creation time with HTTP 422 "cannot be assigned to this issue",
+            # even though the same login is accepted by the dedicated
+            # POST /repos/{owner}/{repo}/issues/{number}/assignees endpoint.
+            # Mirror the UPDATE path: create the issue without assignees, then
+            # add @copilot in a second call. This is the same two-step pattern
+            # GitHub's own UI uses (REST create + GraphQL replaceActorsForAssignable).
             issue = gh.create_issue(
                 title=item.title,
                 body=render_issue_body(item),
                 labels=list(item.labels),
                 milestone_number=milestones.get(item.milestone),
-                assignees=assignees,
+                assignees=[],
             )
             print(f"opened #{issue['number']} {item.id}")
+            if ip.assign_copilot:
+                try:
+                    gh.add_assignees(issue["number"], [COPILOT_ASSIGNEE])
+                    print(f"assigned @{COPILOT_ASSIGNEE} to #{issue['number']}")
+                except RuntimeError as exc:
+                    print(
+                        f"::warning::could not assign @copilot to "
+                        f"#{issue['number']}: {exc}"
+                    )
         elif ip.action == "update" and ip.existing_number is not None:
             gh.update_issue(
                 ip.existing_number,
