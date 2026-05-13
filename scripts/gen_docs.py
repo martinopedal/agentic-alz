@@ -268,12 +268,14 @@ def render_cli() -> tuple[str, list[Path]]:
     ]
     # Pin COLUMNS so click's help text wraps deterministically regardless of
     # the host terminal — required for `--check` to be reliable in CI.
-    env = {**__import__("os").environ, "COLUMNS": "100", "TERM": "dumb"}
+    # PYTHONUTF8=1 forces the subprocess to use UTF-8 stdout/stderr on Windows
+    # (where the default is the system ANSI codepage, e.g. cp1252 / cp437).
+    env = {**__import__("os").environ, "COLUMNS": "100", "TERM": "dumb", "PYTHONUTF8": "1"}
     for cmd in commands:
         argv = ["agentic-alz", *cmd, "--help"]
         try:
             res = subprocess.run(
-                argv, capture_output=True, text=True, check=False, env=env
+                argv, capture_output=True, text=True, encoding="utf-8", check=False, env=env
             )
             help_text = res.stdout or res.stderr
         except FileNotFoundError:
