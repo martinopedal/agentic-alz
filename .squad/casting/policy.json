@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "default_team_size_min": 4,
+  "default_team_size_max": 5,
+  "exempt_names": ["Scribe", "Ralph", "@copilot"],
+  "universes": {
+    "the_expanse": {
+      "capacity": 25,
+      "tone": ["operations", "containment", "multi-faction governance", "physics-bound"]
+    }
+  },
+  "current_universe": "the_expanse"
+}

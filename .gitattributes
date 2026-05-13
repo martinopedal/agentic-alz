@@ -1,0 +1,5 @@
+# Squad append-only files — keep all lines from both sides on merge
+.squad/decisions.md merge=union
+.squad/agents/*/history.md merge=union
+.squad/log/** merge=union
+.squad/orchestration-log/** merge=union

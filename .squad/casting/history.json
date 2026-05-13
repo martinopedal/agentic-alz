@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "assignments": [
+    {
+      "assignment_id": "2026-05-12T22:36:05Z-init",
+      "timestamp": "2026-05-12T22:36:05Z",
+      "universe": "the_expanse",
+      "team_size": 5,
+      "members": ["Holden", "Naomi", "Amos", "Bobbie", "Alex"],
+      "exempt": ["Scribe", "Ralph"],
+      "trigger": "init",
+      "user": "martinopedal"
+    }
+  ],
+  "universe_usage": {
+    "the_expanse": {
+      "first_used": "2026-05-12T22:36:05Z",
+      "last_used": "2026-05-12T22:36:05Z",
+      "use_count": 1
+    }
+  }
+}
