@@ -170,3 +170,42 @@ Martin's directive requires `.squad/` to be invisible to end users but auditable
 **PR:** #28 (docs(maintainer): hide squad coordination layer behind README maintainer area)
 
 **Self-extracted skill (Holden):** hide-internal-tooling-behind-maintainer-area — When tooling is necessary but not part of the product surface, establish a convention: (1) collapsed README details block with disambiguation, (2) dedicated maintainer-facing docs subtree, (3) CODEOWNERS lock. This scales to future maintainer-only features without cluttering the public narrative.
+
+
+---
+
+### 2026-05-13T15:00:00Z: REVERSAL — squad is part of the agentic showcase, not hidden (supersedes squad-hidden-from-public-docs)
+
+**By:** Coordinator (martinopedal-driven nudge)
+**Status:** ACCEPTED — SUPERSEDES the 2026-05-13T06:58:20Z entry (squad-hidden-from-public-docs) AND the 2026-05-13T08:15:00Z entry (readme-hide-squad-implementation)
+
+**What:**
+`.squad/` stays VISIBLE in the public README and public-facing docs. The squad coordination layer is reframed as part of the cross-cutting agentic story this repo demonstrates, NOT internal tooling to hide. PR #28 (which implemented Option A: hide via maintainer area) is closed; a replacement PR #28b will:
+
+1. Add a small section in the README that frames `.squad/` as cross-cutting agentic evidence (sits among the existing cross-cutting guarantees).
+2. KEEP the disambiguating one-liner inside the existing "Cloud-agent squad" bullet (the two-meanings-of-squad clarification is still genuinely useful).
+3. Move/rename `docs/maintaining/squad.md` (planned in PR #28) → `docs/squad-coordination.md` (public-facing coordination guide).
+4. Drop the `docs/maintaining/` subtree entirely.
+5. Keep CODEOWNERS entries for `/.squad/` and `/docs/squad-coordination.md` — visibility ≠ ungated edits; owner review still required.
+
+**Why (martinopedal's nudge, paraphrased and accepted):**
+
+> "in this repo, squad should perhaps be in the repo since it's an agentic focus? decide before we do anything"
+
+Agentic ALZ's identity *is* "deterministic governance with narrow LLM stages, demonstrated on a production-bound Azure surface." Hiding the agentic coordination layer that built the repo is incongruent with that pitch. A knife company doesn't hide its knives.
+
+**Reasoning (what the Coordinator weighed before reversing):**
+
+1. **Eat your own dog food.** Visible `.squad/` is *evidence* this team uses agentic patterns to ship agentic features. That's credibility CSAs and security reviewers will weigh.
+2. **Naming collision becomes a feature when both are visible.** "Cloud-agent squad" (product: ROADMAP → @copilot) AND `.squad/` (maintenance team coordination) showcase the same governance philosophy at two layers. Side-by-side they reinforce; hidden, they look like accidental clutter.
+3. **Decision ledger and skill artifacts are *good* content.** `docs-always-updated`, `SRE-as-stages`, `drift-to-roadmap-promotion`, `multi-agent-synthesis`, `hide-internal-tooling-behind-maintainer-area`, this very reversal entry — educational artifacts, not embarrassing internals. They demonstrate sound judgment and build reviewer trust.
+4. **A `<details>` "🛠️ Maintainer area" block draws MORE attention than inline visibility would.** Hiding-with-a-collapsed-block is the worst of both worlds: it's discoverable and weirdly framed.
+5. **Risks weighed and rejected:** public sees prompt engineering (charters describe roles, not prompts; transparent governance is a feature); candid learnings expose internals (the learnings I've reviewed are marketing material, not warts); competitors copy patterns (coordination patterns aren't a moat — execution is); genuinely confidential content (handled case-by-case; don't put it in tracked files).
+
+**Counts as:** Standing directive — replaces `squad-hidden-from-public-docs`. All future PRs that touch README.md or public-facing docs must honor *visibility*, not concealment, of `.squad/`.
+
+**Captured from:** Coordinator session 2026-05-13 (greenlight cycle), post-PR-#28-CI-triage reversal turn. No inbox file — direct user nudge captured into ledger.
+
+**PR:** #28 (CLOSED in favour of this reversal); PR #28b (forthcoming) will implement.
+
+**Self-extracted skill (Coordinator):** reversal-without-rewriting-history — When a prior decision needs to be reversed: (1) leave the original entry intact (preserves audit trail), (2) add a new entry whose Status line explicitly names the entries it supersedes, (3) explain the nudge or evidence that triggered the reversal, (4) lay out the concrete consequences (what gets closed/rebuilt), (5) update the standing-directive shelf so downstream readers see the new rule first. Never edit the superseded entry — readers must be able to see the trajectory.

@@ -142,3 +142,27 @@ Martin issued two standing directives during this work cycle:
 ---
 
 **Session log authored by:** Scribe (2026-05-13T14:35:00Z)
+
+
+---
+
+## Mid-cycle reversal — squad visibility (2026-05-13T15:00:00Z)
+
+After the merge train was triaged, martinopedal nudged the Coordinator to reconsider the squad-hidden-from-public-docs directive in light of this repo's agentic identity. The Coordinator weighed the trade-offs (eat-your-own-dog-food, naming-collision-as-feature, ledger-as-marketing, draws-more-attention-when-hidden) and reversed the directive.
+
+**Concrete actions:**
+
+1. **PR #28 closed** with a reversal explanation comment. Branch retained for reference.
+2. **`squad-hidden-from-public-docs` (2026-05-13T06:58:20Z) and `readme-hide-squad-implementation` (2026-05-13T08:15:00Z)** marked SUPERSEDED in `.squad/decisions.md` by new entry `squad-as-agentic-showcase` (2026-05-13T15:00:00Z). Original entries left intact per `reversal-without-rewriting-history` skill.
+3. **PR #27 CI failures triaged and fixed:**
+   - `rubberduck/check`: PR body subsection headers were `**bold**` paragraphs; the check requires literal `### H3` headings. Re-formatted body and `gh pr edit --body-file`.
+   - `docs/generate-and-check`: `docs/generated/roadmap.md` legitimately stale after appending 5 new ROADMAP entries. Regenerated locally; discovered Windows-only quirks in `scripts/gen_docs.py` (writes CRLF on Windows; uses backslash path separator in BANNER). Worked around manually for this PR (LF normalization + `s/scripts\\/scripts\//` patch). Filed as evidence for `regen-docs-backstop` (rank #1 in this very PR).
+4. **PR #28b** (forthcoming, off updated `main` after PR #27 merges) will land the visible-by-default framing: small README block as cross-cutting agentic evidence + KEEP disambiguating one-liner + `docs/maintaining/squad.md` → `docs/squad-coordination.md` + drop `docs/maintaining/` subtree + CODEOWNERS retains `/.squad/` and adds the new path.
+
+**Self-extracted skill (Coordinator):** `reversal-without-rewriting-history` — see `.squad/decisions.md` 2026-05-13T15:00:00Z entry for the full pattern.
+
+**Skills surfaced as upcoming `gen_docs.py` requirements (will be folded into `regen-docs-backstop` execution):**
+
+- Cross-platform line-ending handling (open with `newline=""` or write bytes directly).
+- Cross-platform path separator in BANNER (`Path.relative_to(REPO_ROOT).as_posix()`).
+- These are the exact failure modes Holden's drift-discovery flagged — PR #27 now ships with hard evidence the bug exists.
