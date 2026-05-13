@@ -166,3 +166,31 @@ After the merge train was triaged, martinopedal nudged the Coordinator to recons
 - Cross-platform line-ending handling (open with `newline=""` or write bytes directly).
 - Cross-platform path separator in BANNER (`Path.relative_to(REPO_ROOT).as_posix()`).
 - These are the exact failure modes Holden's drift-discovery flagged — PR #27 now ships with hard evidence the bug exists.
+## 2026-05-13T16:30:00Z — session continuation (compaction recovery + GraphQL fix + visible-by-default rework)
+
+After session compaction, picked up from "PR #31 merged but Copilot
+assignment is silently no-op". Three deliverables in this leg:
+
+1. **PR #38** (merged): GraphQL `replaceActorsForAssignable` is the
+   only path that sticks. `scripts/squad_bootstrap.py` reworked to
+   discover the bot node ID via `suggestedActors` and call the
+   GraphQL mutation in both CREATE and UPDATE paths.
+2. **PR #39** (merged): `.squad/` surfaced in README + CODEOWNERS;
+   new `docs/squad-coordination.md` maintainer guide. Implements
+   the `squad-as-agentic-showcase` reversal landed in PR #26.
+3. Cloud agent has independently picked up issue #32
+   (`regen-docs-backstop`) — draft PR #37 in flight, addressing the
+   cross-platform `gen_docs.py` UTF-8/path-separator quirks that
+   forced the four-time manual workaround across this session.
+
+### Decisions appended
+
+- `graphql-replaceactorsforassignable-is-the-only-path-that-sticks`
+
+### Next steps
+
+- Watch PR #37 (cloud-agent driven) — when it lands, the manual
+  `regen + LF + forward-slash` workaround retires.
+- Backlog: backfill three partial-fix ledger entries for PRs #29, #30,
+  #31 so the supersession chain in the GraphQL entry has real targets.
+- Backlog: spawn Ralph round 2 once PR #37 is in.

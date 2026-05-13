@@ -73,3 +73,17 @@
 - AGENTS.md enhancement: Must add evals/replay.py and judge.py to "never edit" list (requires multi-model judge + separate PR)
 
 **Shared insight:** Shared PR Opener (Naomi, rank 7) is the critical architectural enabler. Without it, each candidate rolls its own PR logic, fragmenting rubberduck/judge enforcement.
+
+### 2026-05-13T16:30:00Z: shipped GraphQL Copilot-assign fix + visible-by-default squad framing
+
+- PR #38 (merged): `scripts/squad_bootstrap.py` GraphQL refactor —
+  `find_copilot_actor_id()` + `assign_copilot_via_graphql()` +
+  `existing_node_id` on `IssuePlan`. Replaces silent-no-op REST
+  `add_assignees` for the Copilot bot.
+- PR #39 (merged): README split (cloud-agent vs local coord layer),
+  new `docs/squad-coordination.md` maintainer guide, CODEOWNERS
+  additions for `/.squad/` and `/docs/squad-coordination.md`.
+- Decisions ledger entry:
+  `graphql-replaceactorsforassignable-is-the-only-path-that-sticks`.
+- Cloud agent (PR #37) has picked up issue #32 organically via the
+  manual GraphQL assignment from earlier in the session.
