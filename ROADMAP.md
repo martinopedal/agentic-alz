@@ -378,3 +378,159 @@ acceptance_criteria:
 
 The full read-only importer + Composer write path. Stays `human-only`
 for v1 — depends on the real sibling repo and on the new MCP allowlist.
+
+### regen-docs.yml backstop + cross-platform reproducible gen_docs.py
+
+```yaml
+id: regen-docs-backstop
+title: "Phase 3: regen-docs.yml safety-net workflow + cross-platform gen_docs.py fix"
+milestone: "Phase 3 — Agentic features"
+labels: [area:ci, area:docs, type:infra]
+agent_eligible: true
+depends_on: []
+playbook: "08-ci-workflow-change.md"
+summary: >-
+  The docs/generate-and-check CI gate is path-filtered and misses staleness
+  when source-of-truth files outside its trigger set change. Additionally,
+  gen_docs.py produces cp437 mojibake (ÔÇö instead of em-dash) when run on
+  Windows without explicit UTF-8 encoding. This item adds a safety-net
+  workflow (regen-docs.yml) that detects drift on every push to main and
+  opens a bot-authored PR (never auto-merges), plus fixes gen_docs.py to
+  force UTF-8 I/O regardless of locale. Implements Tier 2 of the
+  docs-always-updated pattern endorsed by the team.
+acceptance_criteria:
+  - ".github/workflows/regen-docs.yml runs gen_docs.py --check on every push to main (not path-filtered)"
+  - "When drift is detected, workflow opens a PR with the regenerated output and label docs:regen"
+  - "Workflow never auto-merges; human review required"
+  - "scripts/gen_docs.py opens all files with encoding='utf-8' explicitly (no locale-dependent defaults)"
+  - "gen_docs.py --check produces identical output on Ubuntu and Windows runners"
+  - "Existing docs/generate-and-check gate is not weakened"
+  - "Kill switch (AGENTIC_ALZ_DISABLED) short-circuits the workflow"
+```
+
+This is the highest-priority Phase-3 item because active baseline drift on
+`main` violates the docs-always-updated standing directive. The fix is
+pure CI plumbing and script hardening — no sensitive-surface changes.
+
+### Plan Summarizer — LLM-authored advisory comment on every plan PR
+
+```yaml
+id: plan-summarizer
+title: "Phase 3: Plan Summarizer posts LLM-authored advisory comment on plan PRs"
+milestone: "Phase 3 — Agentic features"
+labels: [area:ci, area:llm, area:terraform]
+agent_eligible: true
+depends_on: [phase2-plan-workflow]
+playbook: "01-roadmap-item.md"
+summary: >-
+  Adds an advisory step to the plan workflow that reads plan JSON +
+  Infracost diff, calls the frontier model via assert_frontier, and posts a
+  human-readable summary as a PR comment. The summary covers resource
+  counts, cost delta, and any drift-flagged items. This is advisory only —
+  it never gates merge and never mutates infrastructure. Replaces manual
+  parsing of 800-line plan JSON output.
+acceptance_criteria:
+  - "New step in plan.yml calls frontier model and posts a PR comment summarising the plan"
+  - "Comment includes resource add/change/destroy counts, cost delta from Infracost, and top-3 riskiest changes"
+  - "LLM call routes through agentic_alz.llm.models.assert_frontier"
+  - "Token budget enforced via agentic_alz.budget"
+  - "Comment is advisory only — plan.yml never gates merge on the LLM output"
+  - "Deterministic fallback: if LLM call fails, plan workflow still succeeds and posts raw resource counts"
+  - "Kill switch (AGENTIC_ALZ_DISABLED) skips the LLM step; plan workflow unaffected"
+```
+
+Cheapest high-impact agentic win. LLM output is ephemeral (PR comment),
+so no source-of-truth surface is touched and no judge is required.
+
+### Rubberduck Generator — auto-populate PR template sections
+
+```yaml
+id: rubberduck-generator
+title: "Phase 3: Rubberduck Generator auto-populates PR template sections from diff"
+milestone: "Phase 3 — Agentic features"
+labels: [area:ci, area:llm]
+agent_eligible: true
+depends_on: [cross-eval-gating]
+playbook: "01-roadmap-item.md"
+summary: >-
+  Extends the PR authoring flow to auto-populate the Rubberduck, Playbook,
+  Multi-model judge, and Frontier-model attestation sections of the PR
+  template using an LLM that reads the PR diff and playbook metadata. The
+  human author reviews and edits before merge; rubberduck.yml still checks
+  for unfilled placeholders. Reduces rubberduck check failures from ~30%
+  to ~5% by eliminating blank-section mistakes.
+acceptance_criteria:
+  - "GitHub Action or workflow step reads PR diff and populates Rubberduck sections as a draft PR comment or body edit"
+  - "LLM call routes through agentic_alz.llm.models.assert_frontier"
+  - "Populated sections are clearly marked as LLM-drafted; human must review before merge"
+  - "rubberduck.yml still checks for placeholder tokens — auto-populated content must pass the same gate"
+  - "Playbook section is populated by matching changed paths to docs/playbooks/00-task-router.md routing table"
+  - "Token budget enforced via agentic_alz.budget"
+  - "Kill switch (AGENTIC_ALZ_DISABLED) skips auto-population; manual authoring remains the fallback"
+```
+
+Multiplies velocity on every subsequent PR by reducing rubberduck check
+failures to near-zero. Output is ephemeral PR-body content; the human
+remains the author of record.
+
+### Shared PR Opener — reusable advisory-PR primitive
+
+```yaml
+id: shared-pr-opener
+title: "Phase 3: Shared PR Opener primitive for advisory PRs with rubberduck pre-fill"
+milestone: "Phase 3 — Agentic features"
+labels: [area:orchestrator]
+agent_eligible: true
+depends_on: [phase2-validate-workflow]
+playbook: "01-roadmap-item.md"
+summary: >-
+  Creates a reusable orchestrator module (orchestrator/agentic_alz/github/pr.py)
+  that encapsulates the pattern "open an advisory PR with diff, rubberduck
+  pre-fill, judge attestation slot, and correct labels." This is the
+  architectural enabler for all M/L agentic features that need to open PRs
+  (AVM version bumps, drift triage remediation proposals, firewall
+  composer output). Without it, each feature rolls its own PR logic and
+  fragments rubberduck/judge enforcement. Routes through github-mcp
+  PR/issue surface only; never triggers an apply.
+acceptance_criteria:
+  - "orchestrator/agentic_alz/github/pr.py exposes open_advisory_pr() with typed parameters for diff, title, body template, labels, and reviewer list"
+  - "Rubberduck sections are pre-filled from caller-provided metadata; placeholders remain for human review"
+  - "MCP calls route through agentic_alz.mcp.assert_allowed; only github-mcp PR/issue tools are used"
+  - "PR body includes the idempotency marker pattern (<!-- advisory-pr: {source}-{hash} -->) to prevent duplicate PRs"
+  - "Unit tests in orchestrator/tests/test_pr_opener.py cover happy path, duplicate detection, and kill-switch bail-out"
+  - "Kill switch (AGENTIC_ALZ_DISABLED) causes open_advisory_pr() to return without opening a PR"
+```
+
+Architectural enabler. The AVM bump workflow and any future drift-triage
+remediation depend on this primitive being in place first.
+
+### AVM Version-Bump — weekly dependency freshness workflow
+
+```yaml
+id: avm-version-bump
+title: "Phase 3: AVM Version-Bump weekly workflow opens PRs for outdated AVM pins"
+milestone: "Phase 3 — Agentic features"
+labels: [area:ci, area:terraform]
+agent_eligible: true
+depends_on: [shared-pr-opener]
+playbook: "08-ci-workflow-change.md"
+summary: >-
+  Weekly cron workflow queries the AVM module registry for newer versions,
+  compares against versions.lock files in templates/, and opens a PR per
+  outdated module using the Shared PR Opener primitive. Each PR includes
+  the changelog delta and runs the full CI pipeline (fmt, validate, tflint,
+  checkov, conftest, plan) before requesting human review. This catches
+  AVM security patches within 7 days and keeps dependency freshness
+  automated without bypassing the human-merge gate.
+acceptance_criteria:
+  - ".github/workflows/avm-bump.yml runs weekly (cron) and on workflow_dispatch"
+  - "Workflow compares each module source in templates/**/versions.tf against the AVM registry"
+  - "Opens one PR per outdated module via shared-pr-opener; PR includes old version, new version, and changelog link"
+  - "Full CI pipeline (validate + plan + conftest) runs on the bump PR; policies/avm_pinning.rego validates the new pin"
+  - "versions.lock is updated atomically with the version bump"
+  - "Workflow never auto-merges; human review + approval required"
+  - "Kill switch (AGENTIC_ALZ_DISABLED) short-circuits the workflow"
+```
+
+Catches AVM security patches within seven days. PR-only output — never
+auto-merges; human approval gates each bump.
