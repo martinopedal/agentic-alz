@@ -209,3 +209,24 @@ Agentic ALZ's identity *is* "deterministic governance with narrow LLM stages, de
 **PR:** #28 (CLOSED in favour of this reversal); PR #28b (forthcoming) will implement.
 
 **Self-extracted skill (Coordinator):** reversal-without-rewriting-history — When a prior decision needs to be reversed: (1) leave the original entry intact (preserves audit trail), (2) add a new entry whose Status line explicitly names the entries it supersedes, (3) explain the nudge or evidence that triggered the reversal, (4) lay out the concrete consequences (what gets closed/rebuilt), (5) update the standing-directive shelf so downstream readers see the new rule first. Never edit the superseded entry — readers must be able to see the trajectory.
+
+### 2026-05-13T16:30:00Z: graphql-replaceactorsforassignable-is-the-only-path-that-sticks
+
+The four-PR debugging chain (#29 -> #30 -> #31 -> #38) found that:
+- the Copilot bot's display name (`Copilot`) is not its API login;
+- the real underlying login is `copilot-swe-agent` (verified via
+  `repository.suggestedActors(capabilities:[CAN_BE_ASSIGNED])`);
+- `POST /repos/{owner}/{repo}/issues` rejects the bot at creation time
+  with HTTP 422 `cannot be assigned to this issue`;
+- `POST /repos/{owner}/{repo}/issues/{n}/assignees` returns 200 OK with
+  the bot login but **silently does NOT** add it to the assignees array;
+- the only API path that actually sticks is the GraphQL
+  `replaceActorsForAssignable` mutation against the bot's node ID
+  (which is what the GitHub web UI uses internally).
+
+PR #38 reworks `scripts/squad_bootstrap.py` to discover the bot node
+ID at runtime via `suggestedActors` and to assign Copilot via the
+GraphQL mutation in both CREATE and UPDATE paths. The REST
+`add_assignees` helper is left in place for any future human-assignee
+use case but is no longer the path the bootstrapper uses for Copilot.
+
