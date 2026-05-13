@@ -87,3 +87,86 @@ Append-only ledger. Squad (Coordinator) merges entries from `.squad/decisions/in
 - Add `evals/replay.py` and `orchestrator/agentic_alz/llm/judge.py` to "Things an agent must NEVER do" list.
 
 **Key architectural insight:** Shared PR Opener (rank 7) is the critical enabler. Without it, M/L candidates each roll their own PR logic, fragmenting rubberduck/judge enforcement and complicating the roadmap execution.
+
+---
+
+### 2026-05-13T06:58:20Z: User directive — squad must be hidden from public-facing documentation
+
+**By:** martinopedal (via Copilot CLI)  
+**Status:** ACCEPTED-OPTION-A
+
+**What:**
+Going forward, no `.squad/` information may surface in public-facing documentation. The squad coordination layer (roster, charters, ceremonies, casting, decisions, log/research) is **maintainer-only**. The only acknowledgement in the public README must live inside a hidden / collapsed "Maintainer area" section so end users do not see it by default.
+
+**Why:**
+End users / customers / external contributors of Agentic ALZ should see a clean, focused product (deterministic GitOps pipeline + narrow LLM stages). The squad coordination layer is internal tooling for the maintainer (and squad itself); exposing it as a first-class surface dilutes the product narrative and signals the wrong "shape" of the project to first-time readers.
+
+**Implementation pattern — Martin's directive (verbatim):**
+
+> "Going forward, no `.squad/` information may surface in public-facing documentation. The squad coordination layer (roster, charters, ceremonies, casting, decisions, log/research) is **maintainer-only**. The only acknowledgement in the public README must live inside a hidden / collapsed "Maintainer area" section (e.g., GitHub `<details>` block) so end users do not see it by default."
+
+**Visibility/privacy options considered:**
+
+- **Option A (chosen):** Track `.squad/` in git; hide via README maintainer area + CODEOWNERS. Pros: Full auditability, CI-enforced sync, easy for contributors to discover. Cons: 7 new files in repo; maintains naming collision between public "Cloud-agent squad" and internal `.squad/` layer (requires clarification).
+- **Option B:** Gitignore `.squad/` entirely. Pros: Invisible to public repo viewers. Cons: Lost auditability, no CI enforcement, harder for future maintainers to discover coordination layer on clone.
+- **Option C (hybrid):** Track decisions/ and agents/ in git, gitignore log/. Pros: Partial auditability, smaller footprint. Cons: Fragmented; log discovery still a pain; harder to reason about completeness.
+- **Option D:** Submodule `.squad/` to a private repo. Pros: Fully private, no naming collision in public repo tree. Cons: Clone complexity, dependency on separate private repo, breaks squad-cli convention (in-repo coordination).
+
+**Rationale for Option A:**
+Martin's choice optimizes for long-term maintainability: `.squad/` is tracked and auditable, the README honestly acknowledges it (with a collapsible section), and CODEOWNERS guards it from casual edits. The naming collision is resolved with a one-line clarifier in the README. Future squad members can discover the layer; external contributors don't stumble into it confused.
+
+**Counts as:** Standing directive (same shelf as "docs always updated" and "SRE-as-stages, no SRE agent"). All future PRs that touch `README.md` or public-facing docs must honor it.
+
+**Captured from:** .squad/decisions/inbox/copilot-directive-squad-hidden-from-public-docs.md  
+**PR:** #28 (docs(maintainer): hide squad coordination layer behind README maintainer area)
+
+---
+
+### 2026-05-13T14:22:00Z: Roadmap greenlight — top 5 Phase 3 agentic features (re-ranked for gen_docs drift)
+
+**By:** Holden (Lead), requested by martinopedal  
+**Status:** ACCEPTED
+
+**What:**
+Greenlight 5 roadmap items for immediate ROADMAP.md upsert (ranks #1–5). Re-ranked from the synthesis baseline to promote regen-docs-backstop to #1 after the coordinator discovered active baseline drift on main during this work cycle (10 stale generated files, cp437 mojibake in cli.md).
+
+**The 5 items (with original synthesis rank → final rank):**
+
+1. **regen-docs-backstop** (was supporting/unranked → promoted to #1) — Active baseline drift on main (10 stale files, cp437 mojibake) directly violates the "docs always updated" standing directive; must fix before any other agentic feature ships.
+2. **plan-summarizer** (was #1 → #2) — Cheapest high-impact agentic win: LLM prose on every plan PR replaces manual parsing of 800-line plan JSON.
+3. **rubberduck-generator** (was #2 → #3) — Reduces rubberduck.yml check failures from ~30% to ~5% by auto-populating PR template sections.
+4. **shared-pr-opener** (was #4 → #4) — Architectural enabler: without it, every M/L feature fragments rubberduck/judge enforcement.
+5. **avm-version-bump** (was #5 → #5) — Automated dependency freshness catches AVM security patches within a week.
+
+**Why:**
+Five independent agents researched agentic feature candidates. Holden synthesized 28+ candidates into a 10-item prioritized roadmap. Martin asked: "greenlight the top 5 for ROADMAP.md upsert." During synthesis execution, the coordinator detected active docs drift — a violation of the standing "docs-always-updated" directive — and promoted regen-docs-backstop to #1. Remaining four items preserve the synthesis dependency order.
+
+**Captured from:** .squad/decisions/inbox/holden-roadmap-greenlight-top5.md  
+**PR:** #27 (chore(roadmap): greenlight top-5 Phase 3 agentic features)
+
+**Self-extracted skill (Holden):** drift-to-roadmap-promotion — When evidence surfaces that a supporting-infrastructure item is actively breaking a standing directive, re-rank immediately and promote to high priority. The cost of fixing is asymmetric: gen_docs drift costs credibility + clogs future PRs; fixing it costs one focused sprint item.
+
+---
+
+### 2026-05-13T08:15:00Z: Implementation decision — hide squad behind README maintainer area (Option A)
+
+**By:** Holden (Lead), implementing martinopedal's directive  
+**Status:** ACCEPTED
+
+**What:**
+Full specification for PR-ready implementation of Martin's "squad-hidden-from-public-docs" directive, using Option A (track `.squad/`, hide via README + maintainer area + CODEOWNERS).
+
+**Changes (3 file edits + 1 new file):**
+
+1. **README.md edit:** Add one-line clarifier to existing "Cloud-agent squad" bullet (lines 73–80) to disambiguate from internal `.squad/` coordination layer.
+2. **README.md new section:** Add collapsed `<details>` block before License section, explaining what `.squad/` is and pointing maintainers to docs/maintaining/squad.md.
+3. **NEW:** docs/maintaining/squad.md — 300-word maintainer-facing overview of squad coordination layer, directory tour, standing directives, and references.
+4. **CODEOWNERS:** Add two lines marking `.squad/` and `docs/maintaining/` as maintainer-only.
+
+**Why:**
+Martin's directive requires `.squad/` to be invisible to end users but auditable and discoverable for maintainers. README maintainer area + dedicated docs/maintaining/ subtree + CODEOWNERS guards achieve all three. No behavior change; pure documentation.
+
+**Captured from:** .squad/decisions/inbox/holden-readme-hide-squad.md  
+**PR:** #28 (docs(maintainer): hide squad coordination layer behind README maintainer area)
+
+**Self-extracted skill (Holden):** hide-internal-tooling-behind-maintainer-area — When tooling is necessary but not part of the product surface, establish a convention: (1) collapsed README details block with disambiguation, (2) dedicated maintainer-facing docs subtree, (3) CODEOWNERS lock. This scales to future maintainer-only features without cluttering the public narrative.
