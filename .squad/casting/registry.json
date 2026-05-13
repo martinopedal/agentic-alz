@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "agents": {
+    "holden": {
+      "persistent_name": "Holden",
+      "universe": "the_expanse",
+      "role": "Lead",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "naomi": {
+      "persistent_name": "Naomi",
+      "universe": "the_expanse",
+      "role": "Python Engineer",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "amos": {
+      "persistent_name": "Amos",
+      "universe": "the_expanse",
+      "role": "Platform Engineer",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "bobbie": {
+      "persistent_name": "Bobbie",
+      "universe": "the_expanse",
+      "role": "Security Engineer",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "alex": {
+      "persistent_name": "Alex",
+      "universe": "the_expanse",
+      "role": "Eval & Test Engineer",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "scribe": {
+      "persistent_name": "Scribe",
+      "universe": "exempt",
+      "role": "Session Logger",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "ralph": {
+      "persistent_name": "Ralph",
+      "universe": "exempt",
+      "role": "Work Monitor",
+      "created_at": "2026-05-12T22:36:05Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
