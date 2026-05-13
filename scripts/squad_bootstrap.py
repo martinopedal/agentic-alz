@@ -86,6 +86,7 @@ class IssuePlan:
     reason: str
     assign_copilot: bool
     existing_number: int | None = None
+    existing_node_id: str | None = None
     body_diff: tuple[str, str] | None = None  # (old_body_excerpt, new_body_excerpt)
 
 
@@ -335,6 +336,7 @@ def plan_operations(
                     reason="issue body drifted from rendered roadmap",
                     assign_copilot=eligible,
                     existing_number=observed.get("number"),
+                    existing_node_id=observed.get("node_id"),
                     body_diff=(observed.get("body") or "", desired_body),
                 )
             )
@@ -346,6 +348,7 @@ def plan_operations(
                     reason=reason if not eligible else "up to date",
                     assign_copilot=False,
                     existing_number=observed.get("number"),
+                    existing_node_id=observed.get("node_id"),
                 )
             )
 
@@ -484,6 +487,78 @@ class GitHubClient:
             {"assignees": assignees},
         )
 
+    # --- GraphQL ---------------------------------------------------------------
+    def _graphql(self, query: str, variables: dict[str, Any]) -> Any:
+        url = "https://api.github.com/graphql"
+        payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, method="POST")
+        req.add_header("Authorization", f"Bearer {self.token}")
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("User-Agent", "agentic-alz-squad-bootstrap")
+        try:
+            with urllib.request.urlopen(req) as resp:  # noqa: S310 - api.github.com only
+                raw = resp.read().decode("utf-8")
+                result = json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"GitHub GraphQL failed {exc.code}: {detail}") from exc
+        if isinstance(result, dict) and result.get("errors"):
+            raise RuntimeError(f"GitHub GraphQL errors: {result['errors']}")
+        return result.get("data") if isinstance(result, dict) else None
+
+    def find_copilot_actor_id(self) -> str | None:
+        """Return the GraphQL node ID of the Copilot coding agent for this repo,
+        or ``None`` if the repo has no assignable Copilot bot.
+
+        The REST ``assignees`` field silently fails for the Copilot SWE agent
+        (returns 200 OK but does not add the assignee) — only the GraphQL
+        ``replaceActorsForAssignable`` mutation actually sticks. To call it we
+        need the bot's node ID, which we discover via ``suggestedActors`` so
+        we never have to hard-code a value that could change."""
+        owner, name = self.repo.split("/", 1)
+        query = (
+            "query($owner:String!, $name:String!){"
+            "repository(owner:$owner, name:$name){"
+            "suggestedActors(capabilities:[CAN_BE_ASSIGNED], first:50){"
+            "nodes{login __typename ... on Bot{id}}}}}"
+        )
+        data = self._graphql(query, {"owner": owner, "name": name})
+        if not data:
+            return None
+        nodes = (
+            data.get("repository", {})
+            .get("suggestedActors", {})
+            .get("nodes", [])
+        )
+        for node in nodes:
+            if node.get("__typename") == "Bot" and node.get("login") == COPILOT_ASSIGNEE:
+                return node.get("id")
+        return None
+
+    def assign_copilot_via_graphql(self, issue_node_id: str, copilot_actor_id: str) -> list[str]:
+        """Assign Copilot to an issue via GraphQL ``replaceActorsForAssignable``.
+
+        Returns the resulting assignee logins. NOTE: ``replaceActorsForAssignable``
+        replaces the entire assignee list, so callers wanting to preserve
+        existing human assignees must include their actor IDs as well."""
+        mutation = (
+            "mutation($id:ID!, $actorIds:[ID!]!){"
+            "replaceActorsForAssignable(input:{assignableId:$id, actorIds:$actorIds}){"
+            "assignable{... on Issue{assignees(first:20){nodes{login}}}}}}"
+        )
+        data = self._graphql(
+            mutation, {"id": issue_node_id, "actorIds": [copilot_actor_id]}
+        )
+        nodes = (
+            (data or {})
+            .get("replaceActorsForAssignable", {})
+            .get("assignable", {})
+            .get("assignees", {})
+            .get("nodes", [])
+        )
+        return [n["login"] for n in nodes if "login" in n]
+
 
 # ---------------------------------------------------------------------------
 # Issue index helpers
@@ -602,17 +677,35 @@ def main(argv: list[str]) -> int:
         labels.add(name)
         print(f"created label: {name}")
 
+    # Look up Copilot's GraphQL actor ID once if any plan item needs assignment.
+    # The REST ``assignees`` field silently fails for the Copilot SWE agent
+    # (returns 200 OK without adding the assignee), so the only path that
+    # actually sticks is the GraphQL ``replaceActorsForAssignable`` mutation.
+    copilot_actor_id: str | None = None
+    if any(ip.assign_copilot for ip in plan.issues):
+        try:
+            copilot_actor_id = gh.find_copilot_actor_id()
+        except RuntimeError as exc:
+            print(f"::warning::could not look up Copilot actor ID via GraphQL: {exc}")
+        if copilot_actor_id is None:
+            print(
+                "::warning::Copilot is not in this repo's suggestedActors list; "
+                "newly-eligible issues will be created without @copilot assignment "
+                "and a human will need to assign manually."
+            )
+
     for ip in plan.issues:
         item = ip.item
         if ip.action == "create":
             # GitHub's POST /repos/{owner}/{repo}/issues endpoint refuses to
             # assign the Copilot coding agent (copilot-swe-agent) at issue
-            # creation time with HTTP 422 "cannot be assigned to this issue",
-            # even though the same login is accepted by the dedicated
-            # POST /repos/{owner}/{repo}/issues/{number}/assignees endpoint.
-            # Mirror the UPDATE path: create the issue without assignees, then
-            # add @copilot in a second call. This is the same two-step pattern
-            # GitHub's own UI uses (REST create + GraphQL replaceActorsForAssignable).
+            # creation time with HTTP 422 "cannot be assigned to this issue".
+            # The dedicated POST /issues/{number}/assignees endpoint accepts
+            # the login but silently does NOT add Copilot (returns 200 OK with
+            # an unchanged assignees array). The only path that works is the
+            # GraphQL ``replaceActorsForAssignable`` mutation. We therefore
+            # always create the issue without assignees, then GraphQL-assign
+            # in a follow-up call when ``ip.assign_copilot`` is True.
             issue = gh.create_issue(
                 title=item.title,
                 body=render_issue_body(item),
@@ -621,14 +714,14 @@ def main(argv: list[str]) -> int:
                 assignees=[],
             )
             print(f"opened #{issue['number']} {item.id}")
-            if ip.assign_copilot:
+            if ip.assign_copilot and copilot_actor_id:
                 try:
-                    gh.add_assignees(issue["number"], [COPILOT_ASSIGNEE])
+                    gh.assign_copilot_via_graphql(issue["node_id"], copilot_actor_id)
                     print(f"assigned @{COPILOT_ASSIGNEE} to #{issue['number']}")
                 except RuntimeError as exc:
                     print(
                         f"::warning::could not assign @copilot to "
-                        f"#{issue['number']}: {exc}"
+                        f"#{issue['number']} via GraphQL: {exc}"
                     )
         elif ip.action == "update" and ip.existing_number is not None:
             gh.update_issue(
@@ -638,16 +731,22 @@ def main(argv: list[str]) -> int:
                 milestone_number=milestones.get(item.milestone),
             )
             print(f"updated #{ip.existing_number} {item.id}")
-            # Try to add @copilot if newly eligible. Existing assignees are
-            # untouched. Failure (e.g. user can't be assigned in this repo)
-            # is logged but non-fatal — the human reviewer still sees the
-            # issue.
-            if ip.assign_copilot:
+            # Try to add @copilot if newly eligible. ``replaceActorsForAssignable``
+            # replaces the entire assignee list, so we only call it when this
+            # item is newly eligible AND we have a node ID for the existing
+            # issue. Failure is logged but non-fatal — the human reviewer
+            # still sees the issue.
+            if ip.assign_copilot and copilot_actor_id and ip.existing_node_id:
                 try:
-                    gh.add_assignees(ip.existing_number, [COPILOT_ASSIGNEE])
+                    gh.assign_copilot_via_graphql(
+                        ip.existing_node_id, copilot_actor_id
+                    )
                     print(f"assigned @{COPILOT_ASSIGNEE} to #{ip.existing_number}")
                 except RuntimeError as exc:
-                    print(f"::warning::could not assign @copilot to #{ip.existing_number}: {exc}")
+                    print(
+                        f"::warning::could not assign @copilot to "
+                        f"#{ip.existing_number} via GraphQL: {exc}"
+                    )
         # noop: nothing to do; eligibility may have changed but the item is
         # already open and pristine — leave humans in control of assignment.
     return 0
