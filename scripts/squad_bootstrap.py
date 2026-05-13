@@ -50,7 +50,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "roadmap.schema.json"
 
 MARKER_PREFIX = "<!-- roadmap-id: "
 MARKER_SUFFIX = " -->"
-COPILOT_ASSIGNEE = "Copilot"  # GitHub Copilot bot login is case-sensitive at the API: must be "Copilot" (capital C); lowercase fails with HTTP 422.
+COPILOT_ASSIGNEE = "copilot-swe-agent"  # The Copilot coding agent's REST API login is "copilot-swe-agent". The UI/profile display name is "Copilot", but the API requires the underlying bot login. "Copilot" and "copilot" both fail with HTTP 422 (resource=Issue, field=assignees, code=invalid). Verified 2026-05-13 by direct POST to /repos/<owner>/<repo>/issues/<n>/assignees.
 HUMAN_ONLY_LABEL = "human-only"
 
 # H3 heading is one item; fenced ```yaml block underneath holds metadata.
