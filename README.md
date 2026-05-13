@@ -77,7 +77,22 @@ These four are enforced on every PR by code, not by convention:
   (`agent_eligible: true`), all `depends_on` are closed, and no `human-only`
   label is set. The agent's environment is preinstalled by
   [`.github/workflows/copilot-setup-steps.yml`](.github/workflows/copilot-setup-steps.yml).
-  See [`docs/squad.md`](docs/squad.md).
+  This is a *roadmap-driven* gate — it picks which Phase 3 items the GitHub
+  cloud agent may pick up. It is distinct from the `.squad/` directory below,
+  which is a local *coordination* layer Martin uses to drive multi-agent
+  sessions from his developer machine. See [`docs/squad.md`](docs/squad.md).
+- **Local coordination layer (`.squad/`).** Because this repo is itself an
+  agentic experiment, the [`.squad/`](.squad/) directory that drives the
+  developer-side coordination layer is committed in the open rather than
+  hidden. The append-only ledger ([`.squad/decisions.md`](.squad/decisions.md))
+  and per-agent histories under [`.squad/agents/`](.squad/agents/) are the
+  durable trail of which agent did what and which decisions superseded which —
+  the same kind of evidence we expect humans to capture for any sensitive
+  change. CODEOWNERS ([`/.squad/`](CODEOWNERS),
+  [`/docs/squad-coordination.md`](CODEOWNERS)) restricts changes there to
+  `@martinopedal`; merge-union via [`.gitattributes`](.gitattributes) makes
+  the ledger and history files safe to append from parallel agents. The maintainer
+  guide is [`docs/squad-coordination.md`](docs/squad-coordination.md).
 
 The sibling repos (`alz-platform`, `alz-firewall-policy`,
 `alz-workloads/<name>`) are described in the consensus plan and bootstrapped by

@@ -53,3 +53,11 @@
 # Decision schema and decision/ research records. Adding a record is a normal
 # PR; changing the schema is sensitive (per playbook 04).
 /schemas/decision.schema.json               @martinopedal
+
+# Local coordination layer. The .squad/ tree is committed in the open as
+# evidence of the agentic workflow that drives this repo, but only Martin
+# may change it (per `docs/squad-coordination.md`). The append-only ledger,
+# per-agent histories, and orchestration logs all gate on this owner.
+/.squad/                                    @martinopedal
+/docs/squad.md                              @martinopedal
+/docs/squad-coordination.md                 @martinopedal
