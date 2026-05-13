@@ -50,7 +50,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "roadmap.schema.json"
 
 MARKER_PREFIX = "<!-- roadmap-id: "
 MARKER_SUFFIX = " -->"
-COPILOT_ASSIGNEE = "copilot"
+COPILOT_ASSIGNEE = "Copilot"  # GitHub Copilot bot login is case-sensitive at the API: must be "Copilot" (capital C); lowercase fails with HTTP 422.
 HUMAN_ONLY_LABEL = "human-only"
 
 # H3 heading is one item; fenced ```yaml block underneath holds metadata.
